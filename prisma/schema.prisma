@@ -1,0 +1,221 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+model User {
+  id String @id @default(cuid())
+  email String @unique
+  name String
+  passwordHash String
+  createdAt DateTime @default(now())
+  memberships Membership[]
+  sessions Session[]
+  preferences NotificationPreference[]
+  subscriptions PushSubscription[]
+  notifications Notification[]
+}
+model Session {
+  id String @id @default(cuid())
+  tokenHash String @unique
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+}
+model Workspace {
+  id String @id @default(cuid())
+  name String
+  timezone String @default("Asia/Shanghai")
+  createdAt DateTime @default(now())
+  memberships Membership[]
+  projects Project[]
+  items Item[]
+  events ItemEvent[]
+  reminders Reminder[]
+  aiJobs AIJob[]
+  tokens AccessToken[]
+  receipts MutationReceipt[]
+  reports Report[]
+  preferences NotificationPreference[]
+  notifications Notification[]
+  aiConfig AIConfig?
+}
+model Membership {
+  id String @id @default(cuid())
+  userId String
+  workspaceId String
+  role String @default("member")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  @@unique([workspaceId, userId])
+}
+model Project {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  name String
+  description String @default("")
+  color String @default("#d7ff4f")
+  createdAt DateTime @default(now())
+  items Item[]
+  @@index([workspaceId])
+}
+model Item {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  projectId String?
+  project Project? @relation(fields: [projectId], references: [id])
+  parentId String?
+  parent Item? @relation("Subitems", fields: [parentId], references: [id])
+  children Item[] @relation("Subitems")
+  title String
+  notes String @default("")
+  quadrant Int @default(0)
+  orbitX Float?
+  orbitY Float?
+  orbitPlacedAt DateTime?
+  status String @default("open")
+  version Int @default(1)
+  source String @default("manual")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  occurredAt DateTime @default(now())
+  dueAt DateTime?
+  completedAt DateTime?
+  archivedAt DateTime?
+  deletedAt DateTime?
+  events ItemEvent[]
+  reminders Reminder[]
+  @@index([workspaceId, status, dueAt])
+  @@index([workspaceId, occurredAt])
+  @@index([workspaceId, deletedAt])
+}
+model ItemEvent {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  itemId String?
+  item Item? @relation(fields: [itemId], references: [id])
+  actorId String
+  type String
+  data Json
+  createdAt DateTime @default(now())
+  @@index([workspaceId, createdAt])
+}
+model Reminder {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  itemId String
+  item Item @relation(fields: [itemId], references: [id])
+  scheduledAt DateTime
+  status String @default("pending")
+  sentAt DateTime?
+  @@index([status, scheduledAt])
+}
+model AIJob {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  skillId String
+  actorId String
+  model String
+  promptVersion String @default("1")
+  status String
+  inputHash String
+  sourceIds Json
+  output Json?
+  error String?
+  createdAt DateTime @default(now())
+}
+model AIConfig {
+  workspaceId String @id
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  provider String @default("openai")
+  baseUrl String
+  model String
+  encryptedKey String?
+}
+model AccessToken {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  name String
+  tokenHash String @unique
+  scopes String[]
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+}
+model MutationReceipt {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  actorId String
+  key String
+  fingerprint String
+  response Json
+  createdAt DateTime @default(now())
+  @@unique([workspaceId, actorId, key])
+}
+model Report {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  startAt DateTime
+  endAt DateTime
+  content String
+  sourceIds String[]
+  createdAt DateTime @default(now())
+}
+model NotificationPreference {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pushEnabled Boolean @default(false)
+  emailEnabled Boolean @default(false)
+  quietStart Int @default(22)
+  quietEnd Int @default(8)
+  morningHour Int @default(9)
+  morningEnabled Boolean @default(true)
+  dailyLimit Int @default(6)
+  pausedUntil DateTime?
+  @@unique([workspaceId, userId])
+}
+model PushSubscription {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint String @unique
+  keys Json
+}
+model Notification {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dedupeKey String
+  title String
+  body String
+  itemId String?
+  readAt DateTime?
+  emailSentAt DateTime?
+  pushSentAt DateTime?
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  lastError String?
+  createdAt DateTime @default(now())
+  @@unique([userId, dedupeKey])
+  @@index([workspaceId, userId, createdAt])
+}
+model RateBucket {
+  key String @id
+  count Int @default(1)
+  expiresAt DateTime
+}

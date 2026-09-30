@@ -1,0 +1,577 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-30T06:24:10.095775+00:00",
+  "title": "Design System: Orbit",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "neutral",
+        "displayName": "绿调深墨",
+        "tonalRamp": [
+          "oklch(15.00% 0.00683 135.02)",
+          "oklch(26.43% 0.00683 135.02)",
+          "oklch(37.86% 0.00683 135.02)",
+          "oklch(49.29% 0.00683 135.02)",
+          "oklch(60.71% 0.00683 135.02)",
+          "oklch(72.14% 0.00683 135.02)",
+          "oklch(83.57% 0.00683 135.02)",
+          "oklch(95.00% 0.00683 135.02)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "工作面",
+        "tonalRamp": [
+          "oklch(15.00% 0.01054 132.73)",
+          "oklch(26.43% 0.01054 132.73)",
+          "oklch(37.86% 0.01054 132.73)",
+          "oklch(49.29% 0.01054 132.73)",
+          "oklch(60.71% 0.01054 132.73)",
+          "oklch(72.14% 0.01054 132.73)",
+          "oklch(83.57% 0.01054 132.73)",
+          "oklch(95.00% 0.01054 132.73)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "结构线",
+        "tonalRamp": [
+          "oklch(15.00% 0.02216 129.24)",
+          "oklch(26.43% 0.02216 129.24)",
+          "oklch(37.86% 0.02216 129.24)",
+          "oklch(49.29% 0.02216 129.24)",
+          "oklch(60.71% 0.02216 129.24)",
+          "oklch(72.14% 0.02216 129.24)",
+          "oklch(83.57% 0.02216 129.24)",
+          "oklch(95.00% 0.02216 129.24)"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "浅纸色",
+        "tonalRamp": [
+          "oklch(15.00% 0.01063 112.37)",
+          "oklch(26.43% 0.01063 112.37)",
+          "oklch(37.86% 0.01063 112.37)",
+          "oklch(49.29% 0.01063 112.37)",
+          "oklch(60.71% 0.01063 112.37)",
+          "oklch(72.14% 0.01063 112.37)",
+          "oklch(83.57% 0.01063 112.37)",
+          "oklch(95.00% 0.01063 112.37)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "鼠尾草灰",
+        "tonalRamp": [
+          "oklch(15.00% 0.02830 125.77)",
+          "oklch(26.43% 0.02830 125.77)",
+          "oklch(37.86% 0.02830 125.77)",
+          "oklch(49.29% 0.02830 125.77)",
+          "oklch(60.71% 0.02830 125.77)",
+          "oklch(72.14% 0.02830 125.77)",
+          "oklch(83.57% 0.02830 125.77)",
+          "oklch(95.00% 0.02830 125.77)"
+        ]
+      },
+      "lime": {
+        "role": "primary",
+        "displayName": "酸性青柠",
+        "tonalRamp": [
+          "oklch(15.00% 0.19881 121.52)",
+          "oklch(26.43% 0.19881 121.52)",
+          "oklch(37.86% 0.19881 121.52)",
+          "oklch(49.29% 0.19881 121.52)",
+          "oklch(60.71% 0.19881 121.52)",
+          "oklch(72.14% 0.19881 121.52)",
+          "oklch(83.57% 0.19881 121.52)",
+          "oklch(95.00% 0.19881 121.52)"
+        ]
+      },
+      "coral": {
+        "role": "secondary",
+        "displayName": "暖珊瑚",
+        "tonalRamp": [
+          "oklch(15.00% 0.10973 37.38)",
+          "oklch(26.43% 0.10973 37.38)",
+          "oklch(37.86% 0.10973 37.38)",
+          "oklch(49.29% 0.10973 37.38)",
+          "oklch(60.71% 0.10973 37.38)",
+          "oklch(72.14% 0.10973 37.38)",
+          "oklch(83.57% 0.10973 37.38)",
+          "oklch(95.00% 0.10973 37.38)"
+        ]
+      },
+      "violet": {
+        "role": "secondary",
+        "displayName": "柔紫罗兰",
+        "tonalRamp": [
+          "oklch(15.00% 0.11873 294.45)",
+          "oklch(26.43% 0.11873 294.45)",
+          "oklch(37.86% 0.11873 294.45)",
+          "oklch(49.29% 0.11873 294.45)",
+          "oklch(60.71% 0.11873 294.45)",
+          "oklch(72.14% 0.11873 294.45)",
+          "oklch(83.57% 0.11873 294.45)",
+          "oklch(95.00% 0.11873 294.45)"
+        ]
+      },
+      "cyan": {
+        "role": "tertiary",
+        "displayName": "清青蓝",
+        "tonalRamp": [
+          "oklch(15.00% 0.08983 213.75)",
+          "oklch(26.43% 0.08983 213.75)",
+          "oklch(37.86% 0.08983 213.75)",
+          "oklch(49.29% 0.08983 213.75)",
+          "oklch(60.71% 0.08983 213.75)",
+          "oklch(72.14% 0.08983 213.75)",
+          "oklch(83.57% 0.08983 213.75)",
+          "oklch(95.00% 0.08983 213.75)"
+        ]
+      },
+      "nebula-ink": {
+        "role": "neutral",
+        "displayName": "宇宙深墨",
+        "tonalRamp": [
+          "oklch(15.00% 0.01623 261.49)",
+          "oklch(26.43% 0.01623 261.49)",
+          "oklch(37.86% 0.01623 261.49)",
+          "oklch(49.29% 0.01623 261.49)",
+          "oklch(60.71% 0.01623 261.49)",
+          "oklch(72.14% 0.01623 261.49)",
+          "oklch(83.57% 0.01623 261.49)",
+          "oklch(95.00% 0.01623 261.49)"
+        ]
+      },
+      "nebula-text": {
+        "role": "neutral",
+        "displayName": "星光白",
+        "tonalRamp": [
+          "oklch(15.00% 0.01198 259.82)",
+          "oklch(26.43% 0.01198 259.82)",
+          "oklch(37.86% 0.01198 259.82)",
+          "oklch(49.29% 0.01198 259.82)",
+          "oklch(60.71% 0.01198 259.82)",
+          "oklch(72.14% 0.01198 259.82)",
+          "oklch(83.57% 0.01198 259.82)",
+          "oklch(95.00% 0.01198 259.82)"
+        ]
+      },
+      "nebula-muted": {
+        "role": "neutral",
+        "displayName": "雾蓝灰",
+        "tonalRamp": [
+          "oklch(15.00% 0.03144 256.03)",
+          "oklch(26.43% 0.03144 256.03)",
+          "oklch(37.86% 0.03144 256.03)",
+          "oklch(49.29% 0.03144 256.03)",
+          "oklch(60.71% 0.03144 256.03)",
+          "oklch(72.14% 0.03144 256.03)",
+          "oklch(83.57% 0.03144 256.03)",
+          "oklch(95.00% 0.03144 256.03)"
+        ]
+      },
+      "nebula-line": {
+        "role": "neutral",
+        "displayName": "坐标蓝线",
+        "tonalRamp": [
+          "oklch(15.00% 0.03823 257.77)",
+          "oklch(26.43% 0.03823 257.77)",
+          "oklch(37.86% 0.03823 257.77)",
+          "oklch(49.29% 0.03823 257.77)",
+          "oklch(60.71% 0.03823 257.77)",
+          "oklch(72.14% 0.03823 257.77)",
+          "oklch(83.57% 0.03823 257.77)",
+          "oklch(95.00% 0.03823 257.77)"
+        ]
+      },
+      "nebula-callout": {
+        "role": "neutral",
+        "displayName": "星体标注底",
+        "tonalRamp": [
+          "oklch(15.00% 0.03314 262.25 / 0.87451)",
+          "oklch(26.43% 0.03314 262.25 / 0.87451)",
+          "oklch(37.86% 0.03314 262.25 / 0.87451)",
+          "oklch(49.29% 0.03314 262.25 / 0.87451)",
+          "oklch(60.71% 0.03314 262.25 / 0.87451)",
+          "oklch(72.14% 0.03314 262.25 / 0.87451)",
+          "oklch(83.57% 0.03314 262.25 / 0.87451)",
+          "oklch(95.00% 0.03314 262.25 / 0.87451)"
+        ]
+      },
+      "sun": {
+        "role": "secondary",
+        "displayName": "太阳金",
+        "tonalRamp": [
+          "oklch(15.00% 0.10488 83.58)",
+          "oklch(26.43% 0.10488 83.58)",
+          "oklch(37.86% 0.10488 83.58)",
+          "oklch(49.29% 0.10488 83.58)",
+          "oklch(60.71% 0.10488 83.58)",
+          "oklch(72.14% 0.10488 83.58)",
+          "oklch(83.57% 0.10488 83.58)",
+          "oklch(95.00% 0.10488 83.58)"
+        ]
+      },
+      "hole": {
+        "role": "secondary",
+        "displayName": "黑洞紫",
+        "tonalRamp": [
+          "oklch(15.00% 0.11596 303.99)",
+          "oklch(26.43% 0.11596 303.99)",
+          "oklch(37.86% 0.11596 303.99)",
+          "oklch(49.29% 0.11596 303.99)",
+          "oklch(60.71% 0.11596 303.99)",
+          "oklch(72.14% 0.11596 303.99)",
+          "oklch(83.57% 0.11596 303.99)",
+          "oklch(95.00% 0.11596 303.99)"
+        ]
+      },
+      "universe-input": {
+        "role": "neutral",
+        "displayName": "宇宙输入底",
+        "tonalRamp": [
+          "oklch(15.00% 0.01615 224.39)",
+          "oklch(26.43% 0.01615 224.39)",
+          "oklch(37.86% 0.01615 224.39)",
+          "oklch(49.29% 0.01615 224.39)",
+          "oklch(60.71% 0.01615 224.39)",
+          "oklch(72.14% 0.01615 224.39)",
+          "oklch(83.57% 0.01615 224.39)",
+          "oklch(95.00% 0.01615 224.39)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "今日问候",
+        "purpose": "当前工作日的主要问候；随断点调整。"
+      },
+      "headline": {
+        "displayName": "页面标题",
+        "purpose": "工作页面的页面级标题。"
+      },
+      "title": {
+        "displayName": "区块标题",
+        "purpose": "工作区块的短标题。"
+      },
+      "body": {
+        "displayName": "正文基准",
+        "purpose": "全局基准；具体组件按信息密度调整。"
+      },
+      "label": {
+        "displayName": "表单标签",
+        "purpose": "输入标签及简短说明。"
+      },
+      "mono": {
+        "displayName": "系统等宽",
+        "purpose": "数据与坐标；font-variant-numeric: tabular-nums。"
+      },
+      "nebula-headline": {
+        "displayName": "星图标题",
+        "purpose": "星图紧凑标题为 16px；手机与沉浸模式隐藏。"
+      },
+      "nebula-title": {
+        "displayName": "星体标注",
+        "purpose": "两行事项标题，手机 11px。"
+      }
+    },
+    "shadows": [
+      {
+        "name": "capture",
+        "value": "0 7px 30px #0007",
+        "purpose": "桌面浮动捕捉；手机停靠栏取消此阴影。"
+      },
+      {
+        "name": "side-panel",
+        "value": "-16px 0 60px #0005",
+        "purpose": "右侧编辑与详情面板。"
+      },
+      {
+        "name": "notification",
+        "value": "0 12px 50px #0007",
+        "purpose": "通知浮层。"
+      },
+      {
+        "name": "toast",
+        "value": "0 8px 40px #0005",
+        "purpose": "结果提示。"
+      },
+      {
+        "name": "celebration",
+        "value": "0 18px 80px #0009",
+        "purpose": "完成庆祝。"
+      },
+      {
+        "name": "mobile-nav",
+        "value": "25px 0 100px #000b",
+        "purpose": "手机导航抽屉。"
+      },
+      {
+        "name": "nebula-star",
+        "value": "0 0 19px color-mix(in srgb, var(--star-color) 37%, transparent)",
+        "purpose": "仅星图的象限色星体柔光。"
+      },
+      {
+        "name": "nebula-help",
+        "value": "0 12px 45px #0007",
+        "purpose": "星图帮助浮层。"
+      },
+      {
+        "name": "universe-cabin",
+        "value": "24px 0 80px #0009",
+        "purpose": "星图工作舱抽屉，宽 280px。"
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "按钮位移、进度条与进入动效。"
+      },
+      {
+        "name": "control-transition",
+        "value": "0.2s",
+        "purpose": "按钮、导航、意图面板边框与开关。"
+      },
+      {
+        "name": "progress",
+        "value": "0.6s",
+        "purpose": "项目进度变换。"
+      },
+      {
+        "name": "panel-in",
+        "value": "0.35s",
+        "purpose": "从横向 50px 位移与 .4 透明度进入。"
+      },
+      {
+        "name": "toast-in",
+        "value": "0.3s",
+        "purpose": "透明度与底部间距进入。"
+      },
+      {
+        "name": "celebrate-in",
+        "value": "0.65s",
+        "purpose": "由 .6 缩放和模糊进入，至 1.04 再收束。"
+      },
+      {
+        "name": "confetti",
+        "value": "1.3s",
+        "purpose": "完成庆祝粒子。"
+      },
+      {
+        "name": "loading-spin",
+        "value": "1.1s linear infinite",
+        "purpose": "正在加载的旋转图标。"
+      },
+      {
+        "name": "nebula-position",
+        "value": "1.4s var(--ease)",
+        "purpose": "星图坐标变化；拖动时禁用。"
+      },
+      {
+        "name": "nebula-float",
+        "value": "7s ease-in-out infinite",
+        "purpose": "星体上下浮动 3px；拖动暂停，完成后关闭。"
+      },
+      {
+        "name": "nebula-land",
+        "value": "0.8s var(--ease)",
+        "purpose": "成功保存后的落点光环。"
+      },
+      {
+        "name": "solar-breath",
+        "value": "6s ease-in-out infinite",
+        "purpose": "太阳日冕的缓慢呼吸。"
+      },
+      {
+        "name": "solar-turn",
+        "value": "16s linear infinite",
+        "purpose": "太阳细光环旋转。"
+      },
+      {
+        "name": "solar-reward",
+        "value": "1000ms var(--ease)",
+        "purpose": "完成成功后日冕放大淡出。"
+      },
+      {
+        "name": "accretion",
+        "value": "3s linear infinite",
+        "purpose": "黑洞吸积盘形变与亮度循环。"
+      },
+      {
+        "name": "stellar-absorb",
+        "value": "1000ms cubic-bezier(0.42, 0, 0.8, 0.35)",
+        "purpose": "保存成功后沿弯曲轨迹缩小飞入目标，减少动效关闭。"
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide-min",
+        "value": "1550px"
+      },
+      {
+        "name": "desktop-compact-max",
+        "value": "1150px"
+      },
+      {
+        "name": "tablet-max",
+        "value": "900px"
+      },
+      {
+        "name": "mobile-max",
+        "value": "700px"
+      },
+      {
+        "name": "narrow-mobile-max",
+        "value": "370px"
+      },
+      {
+        "name": "nebula-compact-max",
+        "value": "1100px"
+      }
+    ],
+    "notes": [
+      "来源：src/app/globals.css、src/app/layout.tsx、src/components/orbit.tsx。",
+      "颜色与字形等基础令牌只在 DESIGN.md frontmatter 维护；CSS 示例使用现有 CSS 变量并附实际值作为回退。",
+      "tonalRamp 为由当前色值换算到 OKLCH 后等步长改变亮度的面板预览，不是新增的生产色阶；现有实现没有完整八阶色板。",
+      "组件预览仅表达视觉，不模拟 React 业务、焦点捕获或网络行为。Space Grotesk 字体文件由应用布局本地加载；孤立预览可使用文档中的系统回退。",
+      "媒体查询 ≤700px：主区独立滚动，捕捉停靠栏与保留空间均为 calc(74px + env(safe-area-inset-bottom))。",
+      "系统减少动态效果偏好与 .reduced-motion 均禁用动画和过渡、隐藏粒子；系统媒体查询同时将 scroll-behavior 设为 auto。",
+      "星云图来源：src/components/nebula-matrix.tsx、src/app/nebula.css、packages/core/src/orbit-position.ts、packages/core/src/orbit-labels.ts；作用域为 NebulaMatrix。",
+      "星云图始终是二维坐标场；星图默认隐藏管理导航，工作舱按需唤起；沉浸隐藏标题与筛选。缩放与帮助／分页在画布外预留空间。手机标注 120 × 58px，桌面 176 × 62px；每象限每页最多 3／6 个，空间不足时提前分页。",
+      "星体逻辑锚点独立于标注避让。拖动可跨象限，自动截止漂移只在当前象限内向上。坐标与放置时间持久化，失败回滚；截止后手动放置保持稳定。",
+      "星图输入栏横向排列；太阳常驻坐标原点，黑洞仅在拖动、删除保存和删除吸入时出现。天体命中与真实任务写入由 React 完成，预览不模拟业务。"
+    ]
+  },
+  "components": [
+    {
+      "name": "主按钮",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "实际按钮样式；保留悬停、键盘焦点与禁用反馈。",
+      "html": "<button class=\"ds-primary\">捕捉意图</button>",
+      "css": ".ds-primary{font-family:'Space Grotesk', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;display:inline-flex;gap:8px;align-items:center;justify-content:center;border:0;border-radius:7px;font-weight:500;font-size:12px;padding:11px 16px;white-space:nowrap;cursor:pointer;transition:transform .2s var(--ease,cubic-bezier(.16,1,.3,1)),background .2s;background:var(--lime,#d7ff4f);color:#1b260c;}.ds-primary:hover:not(:disabled){background:#e1ff81;transform:translateY(-1px);}.ds-primary:focus-visible{outline:2px solid var(--lime, #d7ff4f);outline-offset:4px;}.ds-primary:active:not(:disabled){transform:scale(.98);}.ds-primary:disabled{opacity:.48;cursor:not-allowed;}@media(max-width:700px){.ds-primary{min-height:44px;}}@media(prefers-reduced-motion:reduce){.ds-primary{animation:none!important;transition:none!important;}}"
+    },
+    {
+      "name": "次按钮",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "实际按钮样式；保留悬停、键盘焦点与禁用反馈。",
+      "html": "<button class=\"ds-secondary\">保存提醒设置</button>",
+      "css": ".ds-secondary{font-family:'Space Grotesk', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;display:inline-flex;gap:8px;align-items:center;justify-content:center;border:0;border-radius:7px;font-weight:500;font-size:12px;padding:11px 16px;white-space:nowrap;cursor:pointer;transition:transform .2s var(--ease,cubic-bezier(.16,1,.3,1)),background .2s;background:#2a3023;color:#dce5cf;border:1px solid #455336;}.ds-secondary:hover:not(:disabled){background:#37412b;}.ds-secondary:focus-visible{outline:2px solid var(--lime, #d7ff4f);outline-offset:4px;}.ds-secondary:disabled{opacity:.48;cursor:not-allowed;}@media(max-width:700px){.ds-secondary{min-height:44px;}}@media(prefers-reduced-motion:reduce){.ds-secondary{animation:none!important;transition:none!important;}}"
+    },
+    {
+      "name": "文字按钮",
+      "kind": "button",
+      "refersTo": "button-text",
+      "description": "用于低优先级操作。",
+      "html": "<button class=\"ds-text\">手动记录</button>",
+      "css": ".ds-text{font-family:'Space Grotesk', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;padding:0;background:none;font-size:11px;color:#b9c5a9;white-space:nowrap;cursor:pointer;}.ds-text:hover{color:var(--lime,#d7ff4f);}.ds-text:focus-visible{outline:2px solid var(--lime, #d7ff4f);outline-offset:4px;}.ds-text:disabled{opacity:.48;cursor:not-allowed;}@media(max-width:700px){.ds-text{min-height:44px;}}"
+    },
+    {
+      "name": "重点事项完成按钮",
+      "kind": "button",
+      "refersTo": "button-complete",
+      "description": "实际按钮样式；保留悬停、键盘焦点与禁用反馈。",
+      "html": "<button class=\"ds-complete\">完成，向前一步</button>",
+      "css": ".ds-complete{font-family:'Space Grotesk', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;display:inline-flex;gap:8px;align-items:center;justify-content:center;border:0;border-radius:7px;font-weight:500;font-size:12px;padding:11px 16px;white-space:nowrap;cursor:pointer;transition:transform .2s var(--ease,cubic-bezier(.16,1,.3,1)),background .2s;background:#24320f;color:var(--lime,#d7ff4f);font-size:10px;padding:9px 11px;}.ds-complete:hover:not(:disabled){background:#3b511b;}.ds-complete:focus-visible{outline:2px solid var(--lime, #d7ff4f);outline-offset:4px;}.ds-complete:disabled{opacity:.48;cursor:not-allowed;}@media(max-width:700px){.ds-complete{min-height:44px;}}@media(prefers-reduced-motion:reduce){.ds-complete{animation:none!important;transition:none!important;}}@media(max-width:700px){.ds-complete{padding:10px 12px;}}"
+    },
+    {
+      "name": "文本字段",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "标准输入以边框颜色表示焦点；手机字号为 16px。",
+      "html": "<label class=\"ds-label\">事项标题<input class=\"ds-field\" placeholder=\"记录重要的事\"></label>",
+      "css": ".ds-label{display:flex;flex-direction:column;gap:8px;font-family:'Space Grotesk', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;font-size:12px;color:var(--muted,#a2aa97);}.ds-field{font-family:'Space Grotesk', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;font-size:14px;line-height:1.55;color:var(--text,#f2f3eb);background:var(--bg,#10120f);border:1px solid #3a4034;border-radius:8px;padding:11px 12px;min-width:0;outline:none;caret-color:var(--lime,#d7ff4f);}.ds-field::placeholder{color:#919988;}.ds-field:focus,.ds-field:focus-visible{border-color:var(--lime,#d7ff4f);}@media(max-width:700px){.ds-field{font-size:16px;}}"
+    },
+    {
+      "name": "导航",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "管理导航在默认星图中由工作舱按需打开；管理页保持常规导航。",
+      "html": "<nav class=\"ds-nav\"><button class=\"ds-nav-item ds-nav-active\">四象限<span class=\"ds-nav-dot\"></span></button><button class=\"ds-nav-item\">收件箱</button></nav>",
+      "css": ".ds-nav{display:flex;flex-direction:column;gap:6px;}.ds-nav-item{font-family:'Space Grotesk', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;border:0;background:transparent;display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:7px;font-size:13px;color:#a8b19a;text-align:left;cursor:pointer;transition:background .2s,color .2s;}.ds-nav-item:hover{background:#252b1d;color:var(--text,#f2f3eb);}.ds-nav-active,.ds-nav-active:hover{background:var(--lime,#d7ff4f);color:#1a2110;font-weight:600;}.ds-nav-item:focus-visible{outline:2px solid var(--lime, #d7ff4f);outline-offset:4px;}.ds-nav-dot{margin-left:auto;background:#273516;width:5px;height:5px;border-radius:50%;}@media(max-width:700px){.ds-nav-item{font-size:14px;padding:13px;}}@media(prefers-reduced-motion:reduce){.ds-nav-item{animation:none!important;transition:none!important;}}"
+    },
+    {
+      "name": "AI 信号标签",
+      "kind": "chip",
+      "refersTo": "signal-chip",
+      "description": "被动状态标签，不作为按钮使用。",
+      "html": "<span class=\"ds-signal-chip\">AI 信号</span>",
+      "css": ".ds-signal-chip{font-family:'Space Grotesk', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;font-size:9px;color:#bcaadf;border:1px solid #514262;padding:3px 7px;border-radius:4px;}"
+    },
+    {
+      "name": "设置卡片",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "普通容器用实色与描边组织信息。",
+      "html": "<section class=\"ds-card\"><h2 class=\"ds-card-title\">你的提醒节奏</h2><p class=\"ds-card-copy\">重要的时刻出现，其余时间保持安静。</p></section>",
+      "css": ".ds-card{font-family:'Space Grotesk', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;border:1px solid var(--line,#31372b);padding:24px;border-radius:var(--radius,14px);background:var(--surface,#191c17);color:var(--text,#f2f3eb);min-width:0;}.ds-card-title{font-size:18px;font-weight:500;letter-spacing:-.025em;margin:0 0 13px;}.ds-card-copy{font-size:11px;color:var(--muted,#a2aa97);margin:0 0 23px;line-height:1.8;}@media(max-width:1150px){.ds-card{padding:20px;}}"
+    },
+    {
+      "name": "意图输入面板",
+      "kind": "custom",
+      "refersTo": "intent",
+      "description": "多行字段焦点由外层面板描边承担。",
+      "html": "<section class=\"ds-intent\"><label class=\"ds-intent-heading\" for=\"ds-intent-input\">让意图进入轨道</label><textarea class=\"ds-intent-input\" id=\"ds-intent-input\" placeholder=\"想做什么，先写下来。\"></textarea></section>",
+      "css": ".ds-intent{font-family:'Space Grotesk', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;border:1px solid #4b5c32;border-radius:var(--radius,14px);padding:19px 22px 14px;background:#1a2014;transition:border-color .2s;}.ds-intent:focus-within{border-color:var(--lime,#d7ff4f);}.ds-intent-heading{display:flex;gap:9px;align-items:center;color:var(--lime,#d7ff4f);font-size:12px;}.ds-intent-input{font-family:'Space Grotesk', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;width:100%;border:0;border-radius:0;background:none;color:var(--text,#f2f3eb);caret-color:var(--lime,#d7ff4f);font-size:15px;padding:16px 0 10px;resize:none;line-height:1.8;min-height:79px;outline:none;}.ds-intent-input::placeholder{color:#9ba98a;}.ds-intent-input:focus-visible{outline:none;}@media(min-width:1550px){.ds-intent-input{font-size:18px;}}@media(max-width:700px){.ds-intent{padding:15px 16px 13px;border-radius:12px;}.ds-intent-heading{font-size:11px;}.ds-intent-input{font-size:16px;line-height:1.7;min-height:82px;padding-top:14px;}}@media(prefers-reduced-motion:reduce){.ds-intent{animation:none!important;transition:none!important;}}"
+    },
+    {
+      "name": "手机捕捉停靠栏",
+      "kind": "custom",
+      "refersTo": "capture-mobile",
+      "description": "展示停靠栏内部样式；应用布局同时预留等高底部空间。",
+      "html": "<div class=\"ds-capture-dock\"><button class=\"ds-capture\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"M12 5v14M5 12h14\"/></svg>捕捉想法</button></div>",
+      "css": ".ds-capture-dock{padding:12px 20px calc(12px + env(safe-area-inset-bottom));height:calc(74px + env(safe-area-inset-bottom));box-sizing:border-box;background:#171d11;border-top:1px solid #38462c;}.ds-capture{font-family:'Space Grotesk', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;width:100%;height:48px;display:flex;align-items:center;justify-content:center;gap:9px;padding:13px 15px;border:0;border-radius:10px;background:var(--lime,#d7ff4f);color:#1d270f;font-size:11px;cursor:pointer;box-shadow:none;}.ds-capture:focus-visible{outline:2px solid var(--lime, #d7ff4f);outline-offset:4px;}"
+    },
+    {
+      "name": "星体坐标与标注",
+      "kind": "custom",
+      "refersTo": "nebula-callout",
+      "description": "星图专用：圆形真实锚点、象限色引线与独立文字标注。此预览不模拟拖动或持久化。",
+      "html": "<div class=\"ds-nebula\"><svg class=\"ds-nebula-leader\" viewBox=\"0 0 240 140\" aria-hidden=\"true\"><line x1=\"74\" y1=\"34\" x2=\"132\" y2=\"94\"/></svg><button class=\"ds-nebula-anchor\" aria-label=\"星体：推进本周计划\"><span class=\"ds-nebula-core\"></span><span class=\"ds-nebula-halo\"></span></button><button class=\"ds-nebula-label\"><strong>推进本周计划</strong><small>2 天后截止</small></button></div>",
+      "css": ".ds-nebula{position:relative;width:240px;height:140px;background:#0a0e15;color:#eef3fb;font-family:\"Space Grotesk\",-apple-system,BlinkMacSystemFont,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;}.ds-nebula-leader{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}.ds-nebula-leader line{stroke:var(--lime,#d7ff4f);stroke-width:.7;stroke-opacity:.36;}.ds-nebula-anchor{position:absolute;left:52px;top:12px;width:44px;height:44px;display:grid;place-items:center;border:0;border-radius:50%;padding:0;background:transparent;cursor:grab;}.ds-nebula-core{width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#fffde8 0,var(--lime,#d7ff4f) 25%,color-mix(in srgb,var(--lime,#d7ff4f) 35%,#060b1b) 80%);box-shadow:0 0 19px color-mix(in srgb,var(--lime,#d7ff4f) 37%,transparent);}.ds-nebula-halo{position:absolute;width:39px;height:17px;border:1px solid color-mix(in srgb,var(--lime,#d7ff4f) 45%,transparent);border-radius:50%;transform:rotate(-27deg);}.ds-nebula-label{font-family:inherit;position:absolute;left:44px;top:66px;width:176px;height:62px;border:0;border-radius:8px;padding:6px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:#0b1322df;color:#eef3fb;cursor:grab;transition:background .2s;}.ds-nebula-label strong{font-family:inherit;font-size:12px;line-height:1.5;font-weight:500;}.ds-nebula-label small{font-size:10px;color:#b0bfd5;}.ds-nebula-label:hover{background:#0d1629ed;}.ds-nebula-label:focus-visible,.ds-nebula-anchor:focus-visible{outline:1px solid var(--lime,#d7ff4f);outline-offset:2px;}.ds-nebula-label:active,.ds-nebula-anchor:active{cursor:grabbing;}@media(prefers-reduced-motion:reduce){.ds-nebula-label{transition:none;}}"
+    },
+    {
+      "name": "太阳完成与黑洞删除",
+      "kind": "custom",
+      "refersTo": "sun-target",
+      "description": "静态天体目标预览；实际太阳常驻坐标原点，黑洞只在拖动及删除反馈时显现。",
+      "html": "<div class=\"ds-celestial\"><div class=\"ds-sun\"><i></i><span>拖入完成</span></div><div class=\"ds-hole\"><b></b><i></i><span>拖入删除 · 可撤销</span></div></div>",
+      "css": ".ds-celestial{display:flex;gap:50px;background:#0a0e15;padding:30px;color:#ffd88b;font-family:inherit;font-size:11px}.ds-sun,.ds-hole{position:relative;display:grid;place-items:center;width:108px;height:108px}.ds-sun i{width:56%;height:56%;border-radius:50%;background:radial-gradient(circle at 38% 35%,#fffce3 0%,#ffdc8d 38%,#ffad43 70%,#e77725 100%);box-shadow:0 0 28px #ffb84699,0 0 75px #ff8c423a}.ds-celestial span{position:absolute;top:100%;white-space:nowrap}.ds-hole{width:144px;color:#d2afff}.ds-hole i{width:50px;height:50px;border-radius:50%;background:#010104;box-shadow:0 0 0 1px #dfc0ff,0 0 18px #ae7ff580;z-index:1}.ds-hole b{position:absolute;width:128px;height:128px;border-radius:50%;background:conic-gradient(transparent,#ba8bff 10%,#f3dbff 22%,#8f68d266 30%,transparent 43%,#8051df 55%,#e1b9ff 69%,transparent 85%);mask-image:radial-gradient(circle,transparent 38%,#000 41%,#000 49%,transparent 65%);transform:rotate(-20deg) scaleY(.35)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Flux OS",
+    "overview": "Orbit 的视觉世界是一个会回应行动的工作操作层：绿调深墨承载持续工作的密度，酸性青柠突出当前动作与推进反馈，珊瑚、紫罗兰和青蓝帮助用户识别事项归属。大胆、年轻的表达来自清楚的层级、紧凑的几何字形和有节制的状态反馈。\n\n界面以文字、线条和实色容器组织信息。轨道线与状态点提供识别性；日常列表保持可扫描，完成事项时才出现短暂的放大与粒子反馈。自然语言捕捉与常规编辑共用这一套视觉语言。\n\n四象限星云图是登录后的默认工作场景：深海军蓝坐标场与发光星体把优先级变成可直接操作的位置。轴心的金色太阳代表完成，拖动时出现的紫色黑洞代表删除；管理、报告、项目与设置收进按需打开的工作舱。它继承 Orbit 的字体、青柠主动作和四象限颜色；宇宙背景、连续坐标与沉浸布局属于 NebulaMatrix 主入口。",
+    "keyCharacteristics": [
+      "绿调深墨背景与酸性青柠主动作。",
+      "Space Grotesk 配合中文系统字体，数字使用等宽或等宽数字。",
+      "平面工作区域、细描边分组、浮层使用结构性阴影。",
+      "桌面紧凑分栏；手机扩大输入与点击区域，捕捉入口拥有独立底部空间。",
+      "完成反馈可以庆祝，减少动态效果时仍保留文本结果。"
+    ],
+    "rules": [],
+    "dos": [
+      "Do 使用现有深墨、青柠与象限配色表达层级和状态。",
+      "Do 为主按钮保留高对比实色，为次级操作使用深色描边或文字按钮。",
+      "Do 保持中文系统回退字体、手机表单字号与触控面积。",
+      "Do 为底部捕捉入口保留布局空间，并让内容在主区域内滚动。",
+      "Do 在对话框与移动导航中保留初始焦点、Tab 循环和关闭后的焦点恢复。",
+      "Do 同时尊重系统减少动态效果偏好与应用中的轻量动效设置。",
+      "Do 在星图中区分真实坐标与标注位置，通过引线和分页维持可读性。",
+      "Do 为星图缩放、帮助与分页保留画布外的布局空间。"
+    ],
+    "donts": [
+      "Don't 将原方向稿中的 Inter、IBM Plex Mono 或旧色值当作当前实现。",
+      "Don't 为普通工作卡片添加悬浮阴影或把被动标签变成按钮。",
+      "Don't 让固定捕捉入口覆盖手机主内容的可滚动区域。",
+      "Don't 在减少动态效果模式下播放位移、缩放或粒子动画。",
+      "Don't 仅用颜色表达任务状态；保留文字、标签、完成勾选等线索。",
+      "Don't 将星云图的宇宙背景和全屏坐标布局扩散到所有工作页面。",
+      "Don't 为避免重叠而改变星体的真实坐标，也不要让自动截止漂移跨越所属象限。"
+    ]
+  }
+}

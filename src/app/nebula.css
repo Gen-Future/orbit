@@ -1,0 +1,1470 @@
+/* The map is an actual coordinate canvas; all cosmic styling is local to it. */
+.matrix-page .main-wrap {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0;
+}
+.matrix-page .topbar {
+  flex: none;
+}
+.matrix-page .main-content {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #0a0e15;
+}
+.matrix-page .error-banner {
+  flex: none;
+  margin: 8px 20px 0;
+}
+.matrix-immersive .sidebar,
+.matrix-immersive .topbar {
+  display: none;
+}
+.matrix-immersive .main-wrap {
+  margin-left: 0;
+}
+.nebula-matrix {
+  --nebula-muted: #a5b3c6;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  color: #eef3fb;
+  position: relative;
+}
+.nebula-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 32px 18px;
+}
+.nebula-heading h1 {
+  font-size: clamp(24px, 2.5vw, 36px);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+.nebula-heading h1 > span {
+  color: var(--lime);
+}
+.nebula-heading p {
+  font-size: 11px;
+  color: var(--nebula-muted);
+  margin-top: 8px;
+}
+.nebula-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.nebula-header-actions .primary-button {
+  font-size: 12px;
+  min-height: 42px;
+}
+.nebula-quiet-button {
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #becbdb;
+  font-size: 11px;
+  min-height: 44px;
+}
+.nebula-quiet-button:hover {
+  color: var(--lime);
+}
+.nebula-filters {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 32px 17px;
+  flex: none;
+}
+.nebula-search {
+  flex-direction: row;
+  align-items: center;
+  gap: 9px;
+  width: 280px;
+  border-bottom: 1px solid #354153;
+}
+.nebula-search input {
+  background: none;
+  border: 0;
+  padding: 7px 0;
+  font-size: 12px;
+}
+.nebula-search:focus-within {
+  border-color: var(--lime);
+}
+.nebula-search button {
+  border: 0;
+  background: none;
+  color: #becbdb;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+}
+.nebula-search svg {
+  color: #9dacc1;
+}
+.nebula-filters select {
+  background: #111925;
+  border-color: #263344;
+  width: auto;
+  max-width: 180px;
+  font-size: 11px;
+  padding: 7px 11px;
+  color: #c5d0df;
+}
+.nebula-inbox {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: none;
+  border: 0;
+  color: #c1cede;
+  font-size: 11px;
+  min-height: 36px;
+}
+.nebula-inbox span {
+  color: var(--lime);
+  font-variant-numeric: tabular-nums;
+}
+.nebula-map-shell {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  border-top: 1px solid #283548;
+  border-bottom: 1px solid #283548;
+}
+.nebula-viewport {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: #3a4d67 #0a0e15;
+}
+.nebula-viewport:focus-visible {
+  outline: 1px solid var(--lime);
+  outline-offset: -3px;
+}
+.nebula-field {
+  position: relative;
+  min-height: 400px;
+  isolation: isolate;
+  overflow: hidden;
+}
+.nebula-background {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -4;
+  pointer-events: none;
+}
+.nebula-coordinate-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -3;
+  background-image:
+    linear-gradient(#7488a409 1px, transparent 1px),
+    linear-gradient(90deg, #7488a409 1px, transparent 1px);
+  background-size: 12.5% 12.5%;
+}
+.nebula-orbit-ring {
+  position: absolute;
+  width: 85%;
+  height: 66%;
+  left: 7.5%;
+  top: 17%;
+  border: 1px solid #7783b71c;
+  border-radius: 50%;
+  transform: rotate(-22deg);
+  z-index: -2;
+  pointer-events: none;
+}
+.nebula-orbit-ring.ring-inner {
+  width: 55%;
+  height: 87%;
+  left: 22.5%;
+  top: 6.5%;
+  transform: rotate(35deg);
+  border-style: dashed;
+  border-color: #78a5bf20;
+}
+.nebula-axis-x {
+  position: absolute;
+  top: 50%;
+  left: 2%;
+  width: 96%;
+  height: 1px;
+  background: #9bb4d34a;
+  z-index: -1;
+}
+.nebula-axis-x::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: -3px;
+  width: 7px;
+  height: 7px;
+  border-top: 1px solid #bacde3;
+  border-right: 1px solid #bacde3;
+  transform: rotate(45deg);
+}
+.nebula-axis-x span {
+  position: absolute;
+  top: 7px;
+  font-size: 10px;
+  color: #b0c0d6;
+}
+.nebula-axis-x span:last-child {
+  right: 3px;
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+.nebula-axis-x span:last-child svg {
+  transform: rotate(45deg);
+}
+.nebula-axis-y {
+  position: absolute;
+  top: 3%;
+  left: 50%;
+  height: 94%;
+  width: 1px;
+  background: #9bb4d34a;
+  z-index: -1;
+}
+.nebula-axis-y::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: 0;
+  width: 7px;
+  height: 7px;
+  border-top: 1px solid #bacde3;
+  border-left: 1px solid #bacde3;
+  transform: rotate(45deg);
+}
+.nebula-axis-y span {
+  position: absolute;
+  left: 11px;
+  white-space: nowrap;
+  color: #b0c0d6;
+  font-size: 10px;
+}
+.nebula-axis-y span:last-child {
+  bottom: 0;
+}
+.nebula-origin {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #819dc9;
+  background: #101925;
+  border-radius: 50%;
+  display: flex;
+}
+.nebula-quadrant {
+  position: absolute;
+  width: 50%;
+  height: 50%;
+  pointer-events: none;
+  padding: 24px 30px;
+  transition: background 0.25s;
+}
+.nebula-q1,
+.nebula-color-1 {
+  --star-color: #ffa88e;
+}
+.nebula-q2,
+.nebula-color-2 {
+  --star-color: #d7ff4f;
+}
+.nebula-q3,
+.nebula-color-3 {
+  --star-color: #b4a0f3;
+}
+.nebula-q4,
+.nebula-color-4 {
+  --star-color: #83dcf0;
+}
+.nebula-q1 {
+  top: 0;
+  left: 50%;
+}
+.nebula-q3 {
+  top: 0;
+  left: 0;
+}
+.nebula-q2 {
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-bottom: 35px;
+}
+.nebula-q4 {
+  top: 50%;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-bottom: 35px;
+}
+.nebula-quadrant.is-target {
+  background: color-mix(in srgb, var(--star-color) 8%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--star-color) 40%, transparent);
+  outline-offset: -1px;
+}
+.nebula-quadrant-heading {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.nebula-quadrant h2 {
+  color: var(--star-color);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+}
+.nebula-q-code {
+  color: var(--star-color);
+  font-size: 10px;
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+}
+.nebula-q-count {
+  font-size: 11px;
+  color: #b5c3d7;
+}
+.nebula-quadrant p {
+  font-size: 10px;
+  color: #9caec7;
+  margin-top: 7px;
+}
+.nebula-add {
+  position: absolute;
+  right: 20px;
+  top: 18px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--star-color);
+  pointer-events: auto;
+  border-radius: 50%;
+}
+.nebula-q2 .nebula-add,
+.nebula-q4 .nebula-add {
+  top: auto;
+  bottom: 27px;
+}
+.nebula-add:hover {
+  background: #ffffff12;
+}
+.nebula-item {
+  position: absolute;
+  width: 174px;
+  min-height: 66px;
+  padding: 6px 7px 7px;
+  border: 0;
+  background: transparent;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  border-radius: 12px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+  transition:
+    left 1.4s var(--ease),
+    top 1.4s var(--ease),
+    background 0.2s;
+}
+.nebula-item:hover,
+.nebula-item:focus-visible {
+  z-index: 5;
+  background: #0d1629ed;
+}
+.nebula-item:focus-visible {
+  outline: 1px solid var(--star-color);
+  outline-offset: 2px;
+}
+.nebula-item.is-dragging {
+  cursor: grabbing;
+  z-index: 10;
+  background: #101a2cf2;
+  transition: none;
+}
+.nebula-item[data-readonly='true'] {
+  cursor: pointer;
+}
+.nebula-star {
+  width: 44px;
+  height: 40px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  animation: stellar-float 7s ease-in-out infinite;
+  animation-delay: var(--star-delay);
+}
+.nebula-star-core {
+  width: var(--star-size, 22px);
+  height: var(--star-size, 22px);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 30% 25%,
+    #fffde8 0,
+    var(--star-color) 25%,
+    color-mix(in srgb, var(--star-color) 35%, #060b1b) 80%
+  );
+  box-shadow: 0 0 19px color-mix(in srgb, var(--star-color) 37%, transparent);
+}
+.nebula-star-halo {
+  position: absolute;
+  width: 39px;
+  height: 17px;
+  border: 1px solid color-mix(in srgb, var(--star-color) 45%, transparent);
+  border-radius: 50%;
+  transform: rotate(-27deg);
+}
+.nebula-item.is-hot .nebula-star-halo {
+  width: 48px;
+  height: 23px;
+  border-color: var(--star-color);
+}
+.nebula-item-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  text-shadow: 0 2px 5px #03050d;
+}
+.nebula-item-copy strong {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.nebula-item-copy small {
+  font-size: 10px;
+  color: #b0bfd5;
+}
+.nebula-item.is-hot .nebula-item-copy small {
+  color: var(--star-color);
+}
+.nebula-item.is-done {
+  opacity: 0.7;
+}
+.nebula-item.is-done .nebula-star {
+  animation: none;
+}
+.nebula-done-mark {
+  position: absolute;
+  color: #fff;
+  font-size: 12px;
+}
+.nebula-item.is-dragging .nebula-star {
+  animation-play-state: paused;
+}
+.nebula-item.just-landed .nebula-star-halo {
+  animation: stellar-land 0.8s var(--ease) both;
+}
+.nebula-empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(350px, 85%);
+  padding: 28px;
+  background: #0c1322f5;
+  text-align: center;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  z-index: 4;
+}
+.nebula-empty > svg {
+  color: var(--lime);
+}
+.nebula-empty h3 {
+  font-size: 18px;
+}
+.nebula-empty p {
+  font-size: 12px;
+  color: #b0bfd5;
+}
+.nebula-empty .primary-button {
+  margin-top: 8px;
+}
+.nebula-map-controls {
+  position: absolute;
+  bottom: 14px;
+  right: 18px;
+  display: flex;
+  background: #111a28f0;
+  border-radius: 8px;
+  overflow: hidden;
+  z-index: 12;
+}
+.nebula-map-controls button,
+.nebula-pagination button {
+  background: none;
+  border: 0;
+  color: #c9d7e8;
+  height: 36px;
+  min-width: 36px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.nebula-map-controls button:hover {
+  background: #293748;
+}
+.nebula-map-caption {
+  position: absolute;
+  left: 24px;
+  bottom: 12px;
+  font-size: 9px;
+  color: #b4c1d4;
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  pointer-events: none;
+  z-index: 6;
+}
+.nebula-live-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--lime);
+}
+.nebula-footer {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 9px 25px;
+  flex: none;
+  color: #a7b8cf;
+  font-size: 10px;
+  min-height: 47px;
+}
+.nebula-help-toggle {
+  color: #c3d0e1;
+  background: none;
+  border: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  min-height: 30px;
+}
+.nebula-pagination {
+  margin-left: auto;
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.nebula-help {
+  position: absolute;
+  bottom: 53px;
+  left: 25px;
+  max-width: 390px;
+  background: #182334;
+  padding: 18px;
+  z-index: 20;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.8;
+  box-shadow: 0 12px 45px #0007;
+}
+.nebula-help p + p {
+  margin-top: 10px;
+  color: #b9c9df;
+}
+@keyframes stellar-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@keyframes stellar-land {
+  from {
+    transform: rotate(-27deg) scale(0.7);
+    opacity: 1;
+  }
+  to {
+    transform: rotate(-27deg) scale(2.5);
+    opacity: 0;
+  }
+}
+@media (max-width: 1100px) {
+  .nebula-header {
+    padding: 20px 22px 16px;
+  }
+  .nebula-filters {
+    padding: 0 22px 14px;
+    gap: 10px;
+  }
+  .nebula-drift-note {
+    display: none;
+  }
+  .nebula-item {
+    width: 148px;
+  }
+  .nebula-quadrant p span {
+    display: none;
+  }
+}
+@media (max-width: 700px) {
+  .matrix-page .main-wrap {
+    padding-bottom: 0;
+  }
+  .nebula-header {
+    padding: 18px 17px 12px;
+    gap: 10px;
+  }
+  .nebula-heading h1 {
+    font-size: 23px;
+  }
+  .nebula-heading p {
+    font-size: 10px;
+    margin-top: 7px;
+  }
+  .nebula-header-actions {
+    gap: 5px;
+  }
+  .nebula-header-actions .primary-button {
+    padding: 0;
+    width: 44px;
+    height: 44px;
+  }
+  .nebula-header-actions .primary-button span,
+  .nebula-quiet-button span {
+    display: none;
+  }
+  .nebula-quiet-button {
+    width: 44px;
+    justify-content: center;
+    padding: 0;
+  }
+  .nebula-filters {
+    padding: 0 16px 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .nebula-search {
+    flex-basis: calc(100% - 95px);
+    flex-grow: 1;
+    order: 0;
+    min-width: 0;
+  }
+  .nebula-search input {
+    font-size: 16px;
+  }
+  .nebula-search button {
+    min-width: 36px;
+    height: 44px;
+  }
+  .nebula-inbox {
+    order: 1;
+    min-height: 44px;
+    padding: 0;
+  }
+  .nebula-filters select {
+    order: 2;
+    flex: 1;
+    max-width: none;
+    width: 0;
+    min-width: 0;
+    font-size: 16px;
+    padding: 6px 9px;
+    height: 36px;
+  }
+  .nebula-field {
+    min-height: 450px;
+  }
+  .nebula-quadrant {
+    padding: 14px 15px;
+  }
+  .nebula-q2,
+  .nebula-q4 {
+    padding-bottom: 38px;
+  }
+  .nebula-quadrant-heading {
+    gap: 5px;
+  }
+  .nebula-quadrant h2 {
+    font-size: 12px;
+    letter-spacing: 0;
+  }
+  .nebula-q-code,
+  .nebula-q-count {
+    font-size: 9px;
+  }
+  .nebula-quadrant p {
+    font-size: 9px;
+    margin-top: 5px;
+  }
+  .nebula-add {
+    width: 44px;
+    height: 44px;
+    top: 5px;
+    right: 0;
+  }
+  .nebula-q2 .nebula-add,
+  .nebula-q4 .nebula-add {
+    bottom: 28px;
+  }
+  .nebula-item {
+    width: 117px;
+    padding: 5px 3px;
+  }
+  .nebula-item-copy strong {
+    font-size: 11px;
+  }
+  .nebula-item-copy small {
+    font-size: 9px;
+  }
+  .nebula-star {
+    height: 34px;
+  }
+  .nebula-map-controls {
+    right: 10px;
+    bottom: 8px;
+  }
+  .nebula-map-controls button {
+    height: 44px;
+    min-width: 34px;
+  }
+  .nebula-map-caption {
+    font-size: 8px;
+    left: 15px;
+    bottom: 12px;
+  }
+  .nebula-footer {
+    padding: 4px 10px calc(4px + env(safe-area-inset-bottom));
+    gap: 5px;
+    min-height: 50px;
+  }
+  .nebula-help-toggle {
+    min-height: 44px;
+    font-size: 9px;
+    padding: 0 5px;
+  }
+  .nebula-pagination {
+    font-size: 9px;
+    gap: 0;
+  }
+  .nebula-pagination button {
+    width: 30px;
+    min-width: 30px;
+    height: 44px;
+  }
+  .nebula-help {
+    left: 10px;
+    right: 10px;
+    bottom: 58px;
+    font-size: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nebula-matrix *,
+  .nebula-matrix *::before,
+  .nebula-matrix *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+.reduced-motion .nebula-matrix *,
+.reduced-motion .nebula-matrix *::before,
+.reduced-motion .nebula-matrix *::after {
+  animation: none !important;
+  transition: none !important;
+}
+/* Give the axis its own space, and use compact labels on a pocket-sized map. */
+.nebula-q1,
+.nebula-q2 {
+  padding-left: 52px;
+}
+.nebula-axis-y span {
+  left: 0;
+  transform: translateX(-50%);
+  background: #0b1220;
+  padding: 0 5px;
+}
+@media (max-width: 700px) {
+  .nebula-item {
+    width: 84px;
+  }
+  .nebula-item-copy strong {
+    -webkit-line-clamp: 1;
+    font-size: 11px;
+  }
+  .nebula-item-copy small {
+    font-size: 8px;
+  }
+  .nebula-quadrant p {
+    display: none;
+  }
+  .nebula-q1,
+  .nebula-q2 {
+    padding-left: 36px;
+  }
+  .nebula-quadrant-heading {
+    gap: 4px;
+  }
+  .nebula-q-code {
+    display: none;
+  }
+}
+/* Coordinate anchors stay fixed. Only their callout labels avoid one another. */
+.nebula-leaders {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+.nebula-leaders line {
+  stroke: var(--star-color);
+  stroke-width: 0.7;
+  stroke-opacity: 0.36;
+}
+.nebula-anchor {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  padding: 0;
+  z-index: 3;
+  touch-action: none;
+  cursor: grab;
+  transition:
+    left 1.4s var(--ease),
+    top 1.4s var(--ease);
+}
+.nebula-anchor:focus-visible {
+  outline: 1px solid var(--star-color);
+}
+.nebula-anchor.is-dragging {
+  z-index: 12;
+  transition: none;
+  cursor: grabbing;
+}
+.nebula-anchor.is-dragging .nebula-star {
+  animation-play-state: paused;
+}
+.nebula-anchor.just-landed .nebula-star-halo {
+  animation: stellar-land 0.8s var(--ease) both;
+}
+.nebula-anchor.is-hot .nebula-star-halo {
+  width: 48px;
+  height: 23px;
+  border-color: var(--star-color);
+}
+.nebula-anchor.is-done {
+  opacity: 0.65;
+}
+.nebula-anchor.is-done .nebula-star {
+  animation: none;
+}
+.nebula-item {
+  width: 176px;
+  height: 62px;
+  min-height: 0;
+  padding: 6px 8px;
+  justify-content: center;
+  background: #0b1322df;
+  border-radius: 8px;
+}
+.nebula-item-copy {
+  max-width: 100%;
+}
+.nebula-item-copy strong {
+  -webkit-line-clamp: 2;
+}
+.nebula-map-controls {
+  position: static;
+  flex: none;
+  align-self: flex-end;
+  margin: 6px 24px 0;
+  background: transparent;
+  border-radius: 0;
+  overflow: visible;
+}
+.nebula-footer {
+  min-height: 38px;
+  padding-top: 0;
+}
+.nebula-map-caption {
+  bottom: 10px;
+}
+@media (max-width: 700px) {
+  .nebula-item {
+    width: 120px;
+    height: 58px;
+    padding: 5px 7px;
+  }
+  .nebula-item-copy strong {
+    font-size: 11px;
+    -webkit-line-clamp: 2;
+  }
+  .nebula-item-copy small {
+    font-size: 9px;
+  }
+  .nebula-map-controls {
+    margin: 0 14px;
+  }
+  .nebula-map-controls button {
+    min-width: 44px;
+  }
+  .nebula-footer {
+    min-height: 44px;
+  }
+  .nebula-map-caption {
+    font-size: 9px;
+  }
+  .nebula-quadrant p {
+    display: none;
+  }
+}
+
+/* The universe is the home screen. Management appears only on request. */
+.matrix-page .topbar {
+  display: none;
+}
+.matrix-page .main-wrap {
+  margin-left: 0;
+}
+.matrix-page .sidebar[hidden] {
+  display: none;
+}
+.matrix-page .sidebar.mobile-open {
+  display: flex;
+  width: 280px;
+  transform: none;
+  z-index: 81;
+  box-shadow: 24px 0 80px #0009;
+}
+.matrix-page .mobile-close {
+  display: grid;
+  position: absolute;
+  top: 18px;
+  right: 12px;
+}
+.matrix-page .sidebar.mobile-open .brand {
+  padding-right: 28px;
+}
+.nebula-matrix {
+  --sun: #ffd88b;
+  --hole: #d2afff;
+}
+.nebula-header {
+  padding: 16px 26px;
+  gap: 24px;
+}
+.nebula-heading {
+  margin-right: auto;
+}
+.nebula-heading h1 {
+  font-size: 16px;
+  letter-spacing: -0.02em;
+}
+.nebula-heading p {
+  margin-top: 4px;
+  font-size: 11px;
+}
+.nebula-cockpit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  background: none;
+  border: 0;
+  padding: 0 14px 0 0;
+  min-height: 44px;
+}
+.nebula-cockpit > svg:first-child {
+  color: var(--lime);
+}
+.nebula-cockpit > span:first-of-type {
+  font-size: 27px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+.nebula-cockpit > svg:last-of-type {
+  margin-left: 16px;
+}
+.nebula-cockpit-label {
+  font-size: 12px;
+}
+.nebula-cockpit:hover {
+  color: var(--lime);
+}
+.nebula-header-actions {
+  gap: 18px;
+}
+.nebula-header-actions > button {
+  position: relative;
+}
+.nebula-notification-dot {
+  position: absolute;
+  right: 0;
+  top: 9px;
+  width: 5px;
+  height: 5px;
+  background: var(--lime);
+  border-radius: 50%;
+}
+.nebula-filters[hidden] {
+  display: none;
+}
+.nebula-intent {
+  align-self: center;
+  flex: none;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: min(620px, calc(100% - 32px));
+  margin: 14px 0 0;
+  padding: 6px 8px 6px 18px;
+  background: #172125;
+  border-radius: 16px;
+  border: 1px solid #344448;
+  color: var(--lime);
+  gap: 10px;
+}
+.nebula-intent:focus-within {
+  border-color: var(--lime);
+}
+.nebula-intent input {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  padding: 8px 0;
+}
+.nebula-intent input:focus {
+  outline: none;
+}
+.nebula-intent button {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border: 0;
+  border-radius: 10px;
+  color: #17210b;
+  background: var(--lime);
+  display: grid;
+  place-items: center;
+}
+.nebula-map-controls {
+  margin-top: 0;
+}
+.nebula-sun {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 108px;
+  height: 108px;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+  color: var(--sun);
+}
+.sun-core {
+  position: absolute;
+  width: 56%;
+  height: 56%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 38% 35%,
+    #fffce3 0%,
+    #ffdc8d 38%,
+    #ffad43 70%,
+    #e77725 100%
+  );
+  box-shadow:
+    0 0 28px #ffb84699,
+    0 0 75px #ff8c423a,
+    0 0 135px #ff982017;
+  transition:
+    transform 200ms var(--ease),
+    box-shadow 200ms var(--ease);
+}
+.sun-corona {
+  position: absolute;
+  inset: -22%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffb43f25, #ffb43f05 52%, transparent 68%);
+  animation: solar-breath 6s ease-in-out infinite;
+}
+.sun-flare {
+  position: absolute;
+  width: 68%;
+  height: 68%;
+  border-radius: 50%;
+  border: 1px solid #ffc57170;
+  border-top-color: transparent;
+  border-bottom-color: transparent;
+  animation: solar-turn 16s linear infinite;
+}
+.celestial-label {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 11px;
+  padding: 4px 8px;
+  color: var(--sun);
+  background: #0a0e15cf;
+  border-radius: 4px;
+}
+.nebula-sun.is-target .sun-core {
+  transform: scale(1.3);
+  box-shadow:
+    0 0 40px #ffb846bb,
+    0 0 90px #ff8c4270;
+}
+.nebula-sun.is-fed .sun-corona {
+  animation: solar-reward 1000ms var(--ease) both;
+}
+.nebula-blackhole {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 22;
+  pointer-events: none;
+  display: grid;
+  justify-items: center;
+  color: var(--hole);
+}
+.blackhole-target {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 144px;
+  height: 100px;
+}
+.blackhole-disk {
+  position: absolute;
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent,
+    #ba8bff 10%,
+    #f3dbff 22%,
+    #8f68d266 30%,
+    transparent 43%,
+    #8051df 55%,
+    #e1b9ff 69%,
+    transparent 85%
+  );
+  mask-image: radial-gradient(circle, transparent 38%, #000 41%, #000 49%, transparent 65%);
+  transform: rotate(-20deg) scaleY(0.35);
+  animation: accretion 3s linear infinite;
+}
+.blackhole-core {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #010104;
+  box-shadow:
+    0 0 0 1px #dfc0ff,
+    0 0 18px #ae7ff580,
+    0 0 40px #7545bb33;
+  transition: transform 180ms var(--ease);
+}
+.blackhole-lens {
+  position: absolute;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  border: 1px solid #cea7ff8a;
+  border-left-color: transparent;
+  transform: rotate(30deg) scaleY(0.9);
+}
+.blackhole-label {
+  font-size: 11px;
+  line-height: 1.5;
+  background: #0a0e15eb;
+  padding: 3px 10px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.nebula-blackhole.is-target .blackhole-core {
+  transform: scale(1.2);
+}
+.nebula-blackhole.is-target .blackhole-label {
+  background: #352443;
+  color: #f1deff;
+}
+.stellar-flight {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  z-index: 30;
+  pointer-events: none;
+  animation: stellar-absorb 1000ms cubic-bezier(0.42, 0, 0.8, 0.35) both;
+}
+.flight-star {
+  display: block;
+  width: 22px;
+  height: 22px;
+  margin: -11px;
+  border-radius: 50%;
+  background: var(--star-color);
+  box-shadow: 0 0 20px var(--star-color);
+}
+.flight-trail {
+  position: absolute;
+  top: -3px;
+  right: 0;
+  width: 65px;
+  height: 6px;
+  background: linear-gradient(90deg, transparent, var(--star-color));
+  border-radius: 50%;
+  transform-origin: right;
+}
+.flight-title {
+  position: absolute;
+  left: 18px;
+  top: -10px;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #fff;
+  font-size: 12px;
+}
+.flight-delete {
+  --star-color: var(--hole);
+}
+.deletion-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #30223c;
+  box-shadow: 0 8px 40px #0007;
+  padding: 12px 16px;
+  border-radius: 12px;
+  max-width: calc(100% - 24px);
+  color: #f4e4ff;
+}
+.deletion-toast > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.deletion-toast button {
+  flex: none;
+  background: none;
+  color: #e1bfff;
+  border: 0;
+  min-height: 44px;
+}
+.deleted-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 0;
+  color: var(--coral);
+}
+.delete-item-button {
+  background: none;
+  color: var(--coral);
+  border: 0;
+  padding: 12px 0;
+  min-height: 44px;
+}
+.matrix-immersive .nebula-heading,
+.matrix-immersive .nebula-filters {
+  display: none;
+}
+@keyframes solar-breath {
+  50% {
+    transform: scale(1.16);
+    opacity: 0.65;
+  }
+}
+@keyframes solar-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes solar-reward {
+  20% {
+    transform: scale(1.3);
+  }
+  70% {
+    transform: scale(2);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+@keyframes accretion {
+  50% {
+    transform: rotate(-20deg) scaleY(0.45) scaleX(1.1);
+    opacity: 0.7;
+  }
+}
+@keyframes stellar-absorb {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  55% {
+    transform: translate(var(--bend-x), var(--bend-y)) scale(0.7) rotate(40deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--flight-x), var(--flight-y)) scale(0.02) rotate(180deg);
+    opacity: 0;
+  }
+}
+@media (max-width: 700px) {
+  .nebula-header {
+    padding: 10px 14px;
+    gap: 8px;
+  }
+  .nebula-cockpit {
+    padding-right: 0;
+    gap: 5px;
+  }
+  .nebula-cockpit > span:first-of-type {
+    font-size: 24px;
+  }
+  .nebula-cockpit > svg:last-of-type {
+    margin-left: 6px;
+  }
+  .nebula-cockpit-label,
+  .nebula-heading {
+    display: none;
+  }
+  .nebula-header-actions {
+    margin-left: auto;
+    gap: 7px;
+  }
+  .nebula-header-actions button {
+    min-width: 36px;
+    min-height: 44px;
+  }
+  .nebula-header-actions button > span {
+    display: none;
+  }
+  .nebula-header-actions .primary-button {
+    padding: 8px;
+    min-width: 44px;
+  }
+  .nebula-sun {
+    width: 78px;
+    height: 78px;
+  }
+  .celestial-label {
+    font-size: 10px;
+  }
+  .nebula-intent {
+    margin-top: 10px;
+    padding-left: 12px;
+  }
+  .nebula-intent input {
+    font-size: 16px;
+  }
+  .nebula-intent input::placeholder {
+    font-size: 13px;
+  }
+  .nebula-blackhole {
+    bottom: 12px;
+  }
+  .blackhole-target {
+    width: 124px;
+    height: 80px;
+  }
+  .blackhole-disk {
+    width: 110px;
+    height: 110px;
+  }
+  .blackhole-core {
+    width: 40px;
+    height: 40px;
+  }
+  .blackhole-lens {
+    width: 56px;
+    height: 56px;
+  }
+  .nebula-map-controls {
+    margin-top: 3px;
+  }
+  .nebula-map-caption {
+    bottom: 8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stellar-flight {
+    display: none;
+  }
+}
+.reduced-motion .stellar-flight {
+  display: none;
+}
+.nebula-empty {
+  top: 24%;
+  padding: 12px;
+  background: transparent;
+}

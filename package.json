@@ -1,0 +1,60 @@
+{
+  "name": "orbit",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "prisma generate",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "node --env-file=.env --import tsx prisma/seed.ts",
+    "worker": "node --env-file-if-exists=.env --import tsx apps/worker/src/index.ts",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "test:integration": "node --import tsx --test tests/integration/*.test.ts",
+    "test:e2e": "playwright test",
+    "db:local": "node --import tsx scripts/local-db.ts",
+    "format": "prettier --write src packages apps tests scripts/*.ts prisma/seed.ts playwright.config.ts",
+    "format:check": "prettier --check src packages apps tests scripts/*.ts prisma/seed.ts playwright.config.ts"
+  },
+  "dependencies": {
+    "@fontsource/space-grotesk": "^5.2.0",
+    "@prisma/client": "^6.16.2",
+    "bullmq": "^5.58.0",
+    "ioredis": "^5.7.0",
+    "lucide-react": "^0.468.0",
+    "next": "^15.5.4",
+    "nodemailer": "10.0.12",
+    "prisma": "^6.16.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "web-push": "^3.6.7",
+    "zod": "^4.1.8"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^22.18.6",
+    "@types/nodemailer": "^7.0.1",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "@types/web-push": "^3.6.4",
+    "embedded-postgres": "^17.6.0-beta.15",
+    "prettier": "^3.8.3",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "overrides": {
+    "postcss": "^8.5.23",
+    "deepmerge-ts": "^8.0.0"
+  },
+  "engines": {
+    "node": ">=22.16.0"
+  }
+}

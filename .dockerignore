@@ -1,0 +1,11 @@
+node_modules
+.next
+.cache
+.data
+.env*
+!.env.example
+.git
+.impeccable
+backups
+test-results
+playwright-report

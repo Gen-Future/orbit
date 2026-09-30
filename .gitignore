@@ -1,0 +1,17 @@
+node_modules
+.next
+.next-*/
+.env*
+!.env.example
+coverage
+.cache/
+.data/
+backups/
+playwright-report/
+test-results/
+*.tsbuildinfo
+*.log
+.DS_Store
+.impeccable/review/
+.impeccable/build/
+.impeccable/config.local.json
