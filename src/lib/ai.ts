@@ -28,6 +28,10 @@ export async function activeModelEndpoint(): Promise<ModelEndpoint | null> {
 
 function modelRequest(endpoint: ModelEndpoint, system: string, input: string, json = true) {
   const native = endpoint.provider === 'ollama';
+  const disableThinking =
+    !native &&
+    endpoint.baseUrl.includes('api.siliconflow.cn') &&
+    endpoint.model.startsWith('Qwen/Qwen3');
   return {
     native,
     url: endpoint.baseUrl.replace(/\/$/, '') + (native ? '/api/chat' : '/chat/completions'),
@@ -45,6 +49,7 @@ function modelRequest(endpoint: ModelEndpoint, system: string, input: string, js
         : json
           ? { response_format: { type: 'json_object' }, max_tokens: 2000 }
           : { max_tokens: 2 }),
+      ...(disableThinking ? { enable_thinking: false } : {}),
     },
   };
 }
