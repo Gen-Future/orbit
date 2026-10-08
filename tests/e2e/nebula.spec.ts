@@ -49,10 +49,28 @@ test('星图桌面与手机：画布、坐标、沉浸、缩放及减少动效',
     await expect(page.locator('.sidebar')).toBeHidden();
     await expect(page.locator('.topbar')).toBeHidden();
     await expect(page.locator('.nebula-sun')).toBeVisible();
-    await page.getByRole('button', { name: '选择添加事项的星区' }).click();
-    await expect(page.getByRole('button', { name: '在应变星区添加事项' })).toBeVisible();
-    await expect(page.getByRole('button', { name: '在留白星区添加事项' })).toBeVisible();
-    await page.getByRole('button', { name: '选择添加事项的星区' }).click();
+    const sunTrigger = page.getByRole('button', { name: '选择添加事项的星区' });
+    if (name === 'desktop') {
+      const quickAdd = page.getByRole('button', { name: '在行动星区添加事项' });
+      const triggerBox = (await sunTrigger.boundingBox())!;
+      await page.mouse.move(
+        triggerBox.x + triggerBox.width / 2,
+        triggerBox.y + triggerBox.height / 2,
+      );
+      await expect(quickAdd).toBeVisible();
+      const quickBox = (await quickAdd.boundingBox())!;
+      await page.mouse.move(quickBox.x + quickBox.width / 2, quickBox.y + quickBox.height / 2, {
+        steps: 12,
+      });
+      await page.mouse.click(quickBox.x + quickBox.width / 2, quickBox.y + quickBox.height / 2);
+      await expect(page.getByRole('dialog').getByLabel('注意力坐标')).toHaveValue('1');
+      await page.getByRole('button', { name: '关闭面板' }).click();
+    } else {
+      await sunTrigger.click();
+      await expect(page.getByRole('button', { name: '在应变星区添加事项' })).toBeVisible();
+      await expect(page.getByRole('button', { name: '在留白星区添加事项' })).toBeVisible();
+      await sunTrigger.click();
+    }
     await expect(page.locator('.nebula-blackhole')).toHaveCount(0);
     await page.getByRole('button', { name: '打开工作舱' }).click();
     await expect(page.getByRole('dialog', { name: '主导航' })).toBeVisible();
@@ -508,7 +526,9 @@ test('太阳完成与黑洞删除：取消、失败恢复、吸入动效、撤�
     await expect(page.locator(`[data-item-id="${hole.id}"]`)).toBeVisible();
     // Deleting from the accessible detail action uses the same path and can be restored after reload.
     await page.locator(`[data-item-id="${hole.id}"]`).click();
-    await page.getByRole('button', { name: '删除事项（含子事项）' }).click();
+    await page.getByRole('button', { name: '删除事项及子事项' }).click();
+    await expect(page.getByText('确认删除这颗星体？')).toBeVisible();
+    await page.getByRole('button', { name: '确认删除', exact: true }).click();
     await expect.poll(async () => Boolean((await read(hole.id)).deletedAt)).toBe(true);
     await page.reload();
     await enterMap(page);

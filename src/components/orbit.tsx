@@ -44,6 +44,8 @@ import {
   Trash2,
   Play,
   Save,
+  Circle,
+  Ban,
 } from 'lucide-react';
 import {
   quadrantNames,
@@ -184,6 +186,12 @@ const statuses: Record<string, string> = {
   blocked: '已阻塞',
   done: '已完成',
 };
+const statusOptions = [
+  { value: 'open', label: '待开始', cosmic: '静候', icon: Circle },
+  { value: 'doing', label: '进行中', cosmic: '运转', icon: Play },
+  { value: 'blocked', label: '已阻塞', cosmic: '受阻', icon: Ban },
+  { value: 'done', label: '已完成', cosmic: '余辉', icon: Check },
+] as const;
 const eventsLabel: Record<string, string> = {
   created: '记录了事项',
   updated: '调整了事项',
@@ -2145,7 +2153,7 @@ function DetailPanel({
     [notes, setNotes] = useState(item.notes),
     [quadrant, setQuadrant] = useState(item.quadrant),
     [projectId, setProjectId] = useState(item.projectId || ''),
-    [status, setStatus] = useState(item.status),
+    [confirmDelete, setConfirmDelete] = useState(false),
     [dueAt, setDueAt] = useState(inputDate(item.dueAt, zone)),
     [occurredAt, setOccurredAt] = useState(inputDate(item.occurredAt, zone)),
     [reminderAt, setReminderAt] = useState(
@@ -2167,6 +2175,40 @@ function DetailPanel({
           )}
         </div>
       )}
+      {!item.deletedAt && (
+        <section className="detail-status-switcher" aria-labelledby="detail-status-title">
+          <div className="detail-status-heading">
+            <div>
+              <span id="detail-status-title">当前航行状态</span>
+              <strong>
+                {statusOptions.find((option) => option.value === item.status)?.cosmic}
+              </strong>
+            </div>
+            <small>点击即可切换</small>
+          </div>
+          <div className="detail-status-track" role="group" aria-label="快速切换事项状态">
+            {statusOptions.map((option) => {
+              const Icon = option.icon;
+              const active = item.status === option.value;
+              return (
+                <button
+                  type="button"
+                  key={option.value}
+                  className={`detail-status-option is-${option.value} ${active ? 'is-active' : ''}`}
+                  aria-pressed={active}
+                  disabled={!writable || busy}
+                  onClick={() => {
+                    if (!active) onSave({ status: option.value });
+                  }}
+                >
+                  <Icon size={15} aria-hidden="true" />
+                  <span>{option.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
       <form
         className="panel-form"
         onSubmit={(e) => {
@@ -2176,7 +2218,6 @@ function DetailPanel({
             notes,
             quadrant,
             projectId: projectId || null,
-            status,
             dueAt: fromInput(dueAt, zone),
             occurredAt: fromInput(occurredAt, zone),
             reminderAt: fromInput(reminderAt, zone),
@@ -2202,20 +2243,6 @@ function DetailPanel({
           />
         </label>
         <div className="form-grid">
-          <label>
-            状态
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              disabled={!writable || Boolean(item.deletedAt)}
-            >
-              {Object.entries(statuses).map(([s, label]) => (
-                <option value={s} key={s}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
           <label>
             象限
             <select
@@ -2319,9 +2346,55 @@ function DetailPanel({
         </div>
       </form>
       {writable && !item.deletedAt && (
-        <button className="delete-item-button" disabled={busy} onClick={onDelete}>
-          删除事项{item.parentId ? '' : '（含子事项）'}
-        </button>
+        <section className={`detail-danger ${confirmDelete ? 'is-confirming' : ''}`}>
+          <div className="detail-danger-copy">
+            <span className="detail-danger-icon" aria-hidden="true">
+              <Trash2 size={16} />
+            </span>
+            <div>
+              <h3>移出当前宇宙</h3>
+              <p>
+                {item.parentId
+                  ? '删除后将停止提醒，并可从时光回放恢复。'
+                  : `删除后将停止提醒${items.some((child) => child.parentId === item.id) ? '，子事项也会一同移出' : ''}，仍可从时光回放恢复。`}
+              </p>
+            </div>
+          </div>
+          {confirmDelete ? (
+            <div className="detail-danger-confirm" role="group" aria-label="确认删除事项">
+              <span>确认删除这颗星体？</span>
+              <div>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={busy}
+                  onClick={() => setConfirmDelete(false)}
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  className="delete-item-button is-confirm"
+                  disabled={busy}
+                  onClick={onDelete}
+                >
+                  <Trash2 size={14} />
+                  确认删除
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="delete-item-button"
+              disabled={busy}
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash2 size={14} />
+              删除事项{item.parentId ? '' : '及子事项'}
+            </button>
+          )}
+        </section>
       )}
       <section className="detail-section">
         <h3>小步前进</h3>

@@ -113,6 +113,47 @@ test('UI 完整事项闭环与持久化', async ({ browser }) => {
   await expect(page.getByLabel('周报内容')).toHaveValue(/端到端验收事项/);
   await page.locator('.report-sources button').first().click();
   await expect(page.getByRole('dialog').getByLabel('事项名称')).toHaveValue('端到端验收事项');
+  const detail = page.getByRole('dialog');
+  await expect(detail.getByRole('group', { name: '快速切换事项状态' })).toBeVisible();
+  await detail.getByRole('button', { name: '进行中' }).click();
+  await expect(detail.getByRole('button', { name: '进行中' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await detail.evaluate((node) => {
+    node.scrollTop = 0;
+  });
+  await page.screenshot({
+    path: '.impeccable/review/detail-status-desktop.png',
+    animations: 'disabled',
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await detail.evaluate((node) => {
+    node.scrollTop = 0;
+  });
+  await page.screenshot({
+    path: '.impeccable/review/detail-status-mobile.png',
+    animations: 'disabled',
+  });
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+  ).toBeTruthy();
+  const mobilePanel = await detail.boundingBox();
+  const mobileFields = await detail.locator('.form-grid input, .form-grid select').all();
+  for (const field of mobileFields) {
+    const box = await field.boundingBox();
+    expect(box!.x).toBeGreaterThanOrEqual(mobilePanel!.x);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(mobilePanel!.x + mobilePanel!.width + 1);
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await detail.getByRole('button', { name: '删除事项及子事项' }).click();
+  await expect(detail.getByText('确认删除这颗星体？')).toBeVisible();
+  await page.screenshot({
+    path: '.impeccable/review/detail-status-and-delete.png',
+    animations: 'disabled',
+  });
+  await detail.getByRole('button', { name: '取消', exact: true }).click();
+  await expect(detail.getByText('确认删除这颗星体？')).toBeHidden();
   await context.close();
 });
 test('PWA 元数据与安全离线页', async ({ page, context }) => {

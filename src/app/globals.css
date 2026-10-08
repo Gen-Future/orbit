@@ -1345,6 +1345,81 @@ nav {
   padding: 26px;
   gap: 23px;
 }
+.detail-status-switcher {
+  margin: 20px 26px 0;
+  padding: 15px;
+  border: 1px solid #35402d;
+  border-radius: 12px;
+  background: #131710;
+}
+.detail-status-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.detail-status-heading > div {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+.detail-status-heading span,
+.detail-status-heading small {
+  color: var(--muted);
+  font-size: 10px;
+}
+.detail-status-heading strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+.detail-status-track {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+.detail-status-option {
+  min-width: 0;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 6px;
+  border: 1px solid #343c2e;
+  border-radius: 8px;
+  background: #1a1f17;
+  color: #9ca88f;
+  font-size: 10px;
+  transition:
+    color 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease,
+    transform 0.18s var(--ease);
+}
+.detail-status-option:hover:not(:disabled) {
+  color: var(--text);
+  border-color: #556448;
+  transform: translateY(-1px);
+}
+.detail-status-option.is-active {
+  color: #1a2010;
+  border-color: var(--status-accent);
+  background: var(--status-accent);
+}
+.detail-status-option.is-open {
+  --status-accent: var(--cyan);
+}
+.detail-status-option.is-doing {
+  --status-accent: var(--lime);
+}
+.detail-status-option.is-blocked {
+  --status-accent: var(--coral);
+}
+.detail-status-option.is-done {
+  --status-accent: #ffd88b;
+}
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1367,6 +1442,95 @@ nav {
   display: flex;
   justify-content: space-between;
   padding-top: 5px;
+}
+.detail-danger {
+  margin: 0 26px 28px;
+  padding: 17px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  border: 1px solid #4c302b;
+  border-radius: 12px;
+  background: #1f1714;
+}
+.detail-danger.is-confirming {
+  grid-template-columns: 1fr;
+  border-color: #8a4a3d;
+  background: #271814;
+}
+.detail-danger-copy {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+.detail-danger-icon {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--coral);
+  background: #3a211d;
+}
+.detail-danger h3 {
+  color: #ffd1c4;
+  font-size: 12px;
+  font-weight: 600;
+}
+.detail-danger p {
+  max-width: 34ch;
+  margin-top: 4px;
+  color: #b99b91;
+  font-size: 10px;
+  line-height: 1.6;
+}
+.delete-item-button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 11px;
+  border: 1px solid #754238;
+  border-radius: 7px;
+  color: #ffc1b1;
+  background: #321d19;
+  font-size: 10px;
+  white-space: nowrap;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s var(--ease);
+}
+.delete-item-button:hover:not(:disabled) {
+  border-color: var(--coral);
+  background: #48241e;
+  transform: translateY(-1px);
+}
+.detail-danger-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #5b3028;
+}
+.detail-danger-confirm > span {
+  color: #ffd1c4;
+  font-size: 11px;
+  font-weight: 600;
+}
+.detail-danger-confirm > div {
+  display: flex;
+  gap: 8px;
+}
+.delete-item-button.is-confirm {
+  color: #22100d;
+  border-color: var(--coral);
+  background: var(--coral);
 }
 .detail-section {
   margin: 0 26px 28px;
@@ -2884,6 +3048,9 @@ nav {
   .form-grid {
     gap: 13px;
   }
+  .side-panel .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .panel-form {
     padding: 22px;
     gap: 21px;
@@ -2905,6 +3072,34 @@ nav {
   }
   .detail-section {
     margin: 0 22px 25px;
+  }
+  .detail-status-switcher {
+    margin: 18px 22px 0;
+  }
+  .detail-status-option {
+    min-height: 44px;
+    flex-direction: column;
+    gap: 3px;
+    padding: 6px 3px;
+  }
+  .detail-danger {
+    margin: 0 22px 25px;
+    grid-template-columns: 1fr;
+  }
+  .detail-danger > .delete-item-button {
+    width: 100%;
+    min-height: 44px;
+  }
+  .detail-danger-confirm {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .detail-danger-confirm > div {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .detail-danger-confirm button {
+    min-height: 44px;
   }
   .detail-event {
     font-size: 10px;
