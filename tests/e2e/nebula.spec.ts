@@ -29,6 +29,10 @@ test('星图桌面与手机：画布、坐标、沉浸、缩放及减少动效',
     await expect(page.locator('.sidebar')).toBeHidden();
     await expect(page.locator('.topbar')).toBeHidden();
     await expect(page.locator('.nebula-sun')).toBeVisible();
+    await page.getByRole('button', { name: '选择添加事项的星区' }).click();
+    await expect(page.getByRole('button', { name: '在应变星区添加事项' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '在留白星区添加事项' })).toBeVisible();
+    await page.getByRole('button', { name: '选择添加事项的星区' }).click();
     await expect(page.locator('.nebula-blackhole')).toHaveCount(0);
     await page.getByRole('button', { name: '打开工作舱' }).click();
     await expect(page.getByRole('dialog', { name: '主导航' })).toBeVisible();

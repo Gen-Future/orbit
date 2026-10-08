@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import {
   quadrantNames,
+  isPositionOnlyEvent,
   zonedInstant,
   localParts,
   type CaptureDraft,
@@ -173,6 +174,7 @@ const statuses: Record<string, string> = {
 const eventsLabel: Record<string, string> = {
   created: '记录了事项',
   updated: '调整了事项',
+  positioned: '移动了星体',
   completed: '完成了事项',
   reopened: '重新打开事项',
   archived: '归档了事项',
@@ -1136,7 +1138,7 @@ export default function Orbit() {
                       >
                         <span className="mini-q-label">
                           <span className={`q-dot q${q}`} />
-                          {['', '立即行动', '留给重要的事', '聪明地借力', '给自己留白'][q]}
+                          {['', '立即行动', '留给重要的事', '及时响应', '给自己留白'][q]}
                         </span>
                         <strong>
                           {roots.filter((x) => x.quadrant === q).length}
@@ -1468,6 +1470,7 @@ export default function Orbit() {
                       <span>最近 200 条 · 完整历史可导出</span>
                     </div>
                     {events
+                      .filter((e) => !isPositionOnlyEvent(e))
                       .filter((e) => !query || e.item?.title.includes(query))
                       .filter((e) => !projectFilter || e.item?.projectId === projectFilter)
                       .map((e) => (

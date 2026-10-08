@@ -392,28 +392,6 @@
   color: #9caec7;
   margin-top: 7px;
 }
-.nebula-add {
-  position: absolute;
-  right: 20px;
-  top: 18px;
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  border: 0;
-  background: transparent;
-  color: var(--star-color);
-  pointer-events: auto;
-  border-radius: 50%;
-}
-.nebula-q2 .nebula-add,
-.nebula-q4 .nebula-add {
-  top: auto;
-  bottom: 27px;
-}
-.nebula-add:hover {
-  background: #ffffff12;
-}
 .nebula-item {
   position: absolute;
   width: 174px;
@@ -773,16 +751,6 @@
   .nebula-quadrant p {
     font-size: 9px;
     margin-top: 5px;
-  }
-  .nebula-add {
-    width: 44px;
-    height: 44px;
-    top: 5px;
-    right: 0;
-  }
-  .nebula-q2 .nebula-add,
-  .nebula-q4 .nebula-add {
-    bottom: 28px;
   }
   .nebula-item {
     width: 117px;
@@ -1153,6 +1121,84 @@
   place-items: center;
   color: var(--sun);
 }
+.sun-menu-trigger {
+  position: absolute;
+  z-index: 3;
+  width: 58%;
+  height: 58%;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: transparent;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.sun-menu-trigger:focus-visible {
+  outline: 2px solid #fff4cb;
+  outline-offset: 5px;
+}
+.sun-quick-menu {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.sun-quick-add {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--star-color) 56%, transparent);
+  border-radius: 50%;
+  background: #0b1322f2;
+  color: var(--star-color);
+  box-shadow: 0 5px 18px #0008;
+  opacity: 0;
+  transform: scale(0.72);
+  pointer-events: none;
+  transition:
+    opacity 160ms ease-out,
+    transform 220ms var(--ease),
+    background 160ms ease-out;
+}
+.sun-quick-add:hover {
+  background: color-mix(in srgb, var(--star-color) 16%, #0b1322);
+  transform: scale(1.08);
+}
+.sun-quick-add:focus-visible {
+  outline: 2px solid var(--star-color);
+  outline-offset: 3px;
+}
+.sun-quick-add-q3 {
+  right: calc(100% - 13px);
+  bottom: calc(50% + 9px);
+}
+.sun-quick-add-q1 {
+  left: calc(100% - 13px);
+  bottom: calc(50% + 9px);
+}
+.sun-quick-add-q4 {
+  right: calc(100% - 13px);
+  top: calc(50% + 9px);
+}
+.sun-quick-add-q2 {
+  left: calc(100% - 13px);
+  top: calc(50% + 9px);
+}
+.sun-menu-trigger:focus-visible ~ .sun-quick-menu .sun-quick-add,
+.sun-quick-menu:focus-within .sun-quick-add,
+.nebula-sun.is-menu-open .sun-quick-add {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+@media (hover: hover) and (pointer: fine) {
+  .nebula-sun:hover .sun-quick-add {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+  }
+}
 .sun-core {
   position: absolute;
   width: 56%;
@@ -1453,6 +1499,26 @@
   .nebula-sun {
     width: 78px;
     height: 78px;
+  }
+  .sun-quick-add {
+    width: 44px;
+    height: 44px;
+  }
+  .sun-quick-add-q3 {
+    right: calc(100% - 8px);
+    bottom: calc(50% + 5px);
+  }
+  .sun-quick-add-q1 {
+    left: calc(100% - 8px);
+    bottom: calc(50% + 5px);
+  }
+  .sun-quick-add-q4 {
+    right: calc(100% - 8px);
+    top: calc(50% + 5px);
+  }
+  .sun-quick-add-q2 {
+    left: calc(100% - 8px);
+    top: calc(50% + 5px);
   }
   .celestial-label {
     font-size: 10px;

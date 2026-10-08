@@ -8,6 +8,7 @@ import {
   itemInput,
   itemPatch,
   draftSchema,
+  isPositionOnlyEvent,
 } from '../packages/core/src';
 import { passwordHash, verifyPassword, encrypt, decrypt } from '../src/lib/security';
 test('角色矩阵：viewer 只读，未知角色拒绝', () => {
@@ -61,6 +62,30 @@ test('AI 密钥加密、篡改检测', () => {
   assert.equal(value.includes('test-only-secret'), false);
   assert.equal(decrypt(value), 'test-only-secret');
   assert.throws(() => decrypt(value.slice(0, -1) + (value.endsWith('0') ? '1' : '0')));
+});
+
+test('时光回放识别新旧纯星体位置事件', () => {
+  assert.equal(isPositionOnlyEvent({ type: 'positioned' }), true);
+  assert.equal(
+    isPositionOnlyEvent({
+      type: 'updated',
+      data: {
+        before: { title: '推进方案', quadrant: 2, orbitX: 0.4, version: 1 },
+        after: { title: '推进方案', quadrant: 3, orbitX: -0.4, version: 2 },
+      },
+    }),
+    true,
+  );
+  assert.equal(
+    isPositionOnlyEvent({
+      type: 'updated',
+      data: {
+        before: { title: '推进方案', orbitX: 0.4, version: 1 },
+        after: { title: '确认方案', orbitX: -0.4, version: 2 },
+      },
+    }),
+    false,
+  );
 });
 
 test('中文时间与四象限否定含义', () => {

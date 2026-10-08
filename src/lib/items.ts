@@ -121,6 +121,11 @@ export async function updateItem(
       '包含子事项的事项不能移动到另一事项下',
     );
   const { version, archived, reminderAt, position, ...fields } = patch;
+  const positionOnly =
+    position !== undefined &&
+    archived === undefined &&
+    reminderAt === undefined &&
+    Object.keys(fields).length === 0;
   const point = position ? boundPosition(position) : null;
   if (point && fields.quadrant !== undefined)
     invariant(fields.quadrant === quadrantAt(point), 400, '坐标与象限不一致');
@@ -159,7 +164,9 @@ export async function updateItem(
             ? 'completed'
             : before.status === 'done' && fields.status
               ? 'reopened'
-              : 'updated',
+              : positionOnly
+                ? 'positioned'
+                : 'updated',
       data: json({ before, after: item }),
     },
   });

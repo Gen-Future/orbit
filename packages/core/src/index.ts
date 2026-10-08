@@ -13,6 +13,36 @@ export const scopes = [
 export type Role = (typeof roles)[number];
 export type Scope = (typeof scopes)[number];
 export const quadrantNames = ['收件箱', '重要且紧急', '重要不紧急', '紧急不重要', '不紧急不重要'];
+const positionEventFields = new Set([
+  'quadrant',
+  'orbitX',
+  'orbitY',
+  'orbitPlacedAt',
+  'updatedAt',
+  'version',
+]);
+export function isPositionOnlyEvent(event: { type: string; data?: unknown }) {
+  if (event.type === 'positioned') return true;
+  if (event.type !== 'updated' || !event.data || typeof event.data !== 'object') return false;
+  const data = event.data as { before?: unknown; after?: unknown };
+  if (
+    !data.before ||
+    !data.after ||
+    typeof data.before !== 'object' ||
+    typeof data.after !== 'object'
+  )
+    return false;
+  const before = data.before as Record<string, unknown>;
+  const after = data.after as Record<string, unknown>;
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  let moved = false;
+  for (const key of keys) {
+    if (JSON.stringify(before[key]) === JSON.stringify(after[key])) continue;
+    if (!positionEventFields.has(key)) return false;
+    if (['quadrant', 'orbitX', 'orbitY', 'orbitPlacedAt'].includes(key)) moved = true;
+  }
+  return moved;
+}
 export function can(role: string, scope: string) {
   return roles.includes(role as Role) && (role !== 'viewer' || scope.endsWith('.read'));
 }

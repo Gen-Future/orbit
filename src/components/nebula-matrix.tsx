@@ -72,7 +72,7 @@ type Flight = {
   quadrant: number;
 };
 const QUADRANTS = [
-  { id: 3, title: '借力星区', action: '寻求协作', detail: '不重要 · 紧急' },
+  { id: 3, title: '应变星区', action: '快速响应', detail: '不重要 · 紧急' },
   { id: 1, title: '行动星区', action: '立即行动', detail: '重要 · 紧急' },
   { id: 4, title: '留白星区', action: '暂时放下', detail: '不重要 · 不紧急' },
   { id: 2, title: '生长星区', action: '安排时间', detail: '重要 · 不紧急' },
@@ -226,6 +226,7 @@ export function NebulaMatrix<T extends NebulaItem>({
   const [message, setMessage] = useState('');
   const [landed, setLanded] = useState('');
   const [help, setHelp] = useState(false);
+  const [sunMenuOpen, setSunMenuOpen] = useState(false);
   const [frame, setFrame] = useState({ width: 1000, height: 700, nodeWidth: 174 });
   useEffect(() => {
     const field = fieldRef.current;
@@ -640,13 +641,44 @@ export function NebulaMatrix<T extends NebulaItem>({
             </div>
             <div
               ref={sunRef}
-              className={`nebula-sun ${drag?.target === 'sun' ? 'is-target' : ''} ${flight?.kind === 'complete' ? 'is-fed' : ''}`}
-              role="img"
+              className={`nebula-sun ${sunMenuOpen ? 'is-menu-open' : ''} ${drag?.target === 'sun' ? 'is-target' : ''} ${flight?.kind === 'complete' ? 'is-fed' : ''}`}
+              role="group"
               aria-label="太阳，拖入事项完成"
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') setSunMenuOpen(false);
+              }}
             >
               <span className="sun-corona" />
               <span className="sun-core" />
               <span className="sun-flare" />
+              {writable && (
+                <>
+                  <button
+                    type="button"
+                    className="sun-menu-trigger"
+                    aria-label="选择添加事项的星区"
+                    aria-expanded={sunMenuOpen}
+                    onClick={() => setSunMenuOpen((open) => !open)}
+                  />
+                  <div className="sun-quick-menu" role="group" aria-label="快捷添加事项">
+                    {QUADRANTS.map((quadrant) => (
+                      <button
+                        type="button"
+                        key={quadrant.id}
+                        className={`sun-quick-add sun-quick-add-q${quadrant.id} nebula-color-${quadrant.id}`}
+                        aria-label={`在${quadrant.title}添加事项`}
+                        title={`${quadrant.title} · ${quadrant.action}`}
+                        onClick={() => {
+                          setSunMenuOpen(false);
+                          onAdd(quadrant.id);
+                        }}
+                      >
+                        <Plus size={14} />
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
               <span className="celestial-label">
                 {resolving?.kind === 'complete'
                   ? '正在完成…'
@@ -671,15 +703,6 @@ export function NebulaMatrix<T extends NebulaItem>({
                   {q.detail}
                   <span> / {q.action}</span>
                 </p>
-                {writable && (
-                  <button
-                    onClick={() => onAdd(q.id)}
-                    aria-label={`在${q.title}添加事项`}
-                    className="nebula-add"
-                  >
-                    <Plus size={14} />
-                  </button>
-                )}
               </div>
             ))}
             <svg

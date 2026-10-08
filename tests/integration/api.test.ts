@@ -439,6 +439,7 @@ test('真实 API / PostgreSQL 业务与隔离闭环', async (t) => {
     assert.equal((await request(path, 'PATCH', input, { key })).body.version, 2);
     const reread = (await request(path)).body;
     assert.equal(reread.orbitX, -0.4);
+    assert.equal(reread.events[0].type, 'positioned');
     assert.equal(reread.events[0].data.after.quadrant, 3);
     assert.equal(
       (
