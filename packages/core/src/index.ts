@@ -13,6 +13,27 @@ export const scopes = [
 export type Role = (typeof roles)[number];
 export type Scope = (typeof scopes)[number];
 export const quadrantNames = ['收件箱', '重要且紧急', '重要不紧急', '紧急不重要', '不紧急不重要'];
+export const sedimentAfterMs = 7 * 24 * 60 * 60 * 1000;
+export type SedimentCandidate = {
+  dueAt: string | Date | null;
+  status: string;
+  quadrant: number;
+  archivedAt?: string | Date | null;
+  deletedAt?: string | Date | null;
+};
+export function isSedimentItem(item: SedimentCandidate, now: number | Date) {
+  if (
+    !item.dueAt ||
+    !['open', 'doing', 'blocked'].includes(item.status) ||
+    item.quadrant < 1 ||
+    item.quadrant > 4 ||
+    item.archivedAt ||
+    item.deletedAt
+  )
+    return false;
+  const nowMs = now instanceof Date ? now.getTime() : now;
+  return new Date(item.dueAt).getTime() <= nowMs - sedimentAfterMs;
+}
 const positionEventFields = new Set([
   'quadrant',
   'orbitX',

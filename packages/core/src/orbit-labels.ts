@@ -8,6 +8,7 @@ export function layoutStarLabels(
   width: number,
   height: number,
   compact: boolean,
+  rightInset = 0,
 ): StarLabel[][] {
   const labelWidth = compact ? 120 : 176;
   const labelHeight = compact ? 58 : 62;
@@ -19,7 +20,7 @@ export function layoutStarLabels(
     const left = right ? width / 2 : 0,
       top = upper ? 0 : height / 2;
     const minX = left + labelWidth / 2 + 12,
-      maxX = left + width / 2 - labelWidth / 2 - 12;
+      maxX = left + width / 2 - labelWidth / 2 - 12 - (right ? rightInset : 0);
     const minY = top + (upper ? 85 : 50),
       maxY = top + height / 2 - (upper ? 43 : 84);
     let page = 0;

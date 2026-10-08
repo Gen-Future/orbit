@@ -53,6 +53,7 @@ import {
   type CaptureDraft,
 } from '../../packages/core/src';
 import { NebulaMatrix, type StellarOutcome } from './nebula-matrix';
+import type { SedimentPage, SedimentSummary } from './sediment-belt';
 import type { OrbitPoint } from '../../packages/core/src/orbit-position';
 type Project = { id: string; name: string; description: string; color: string };
 type Item = {
@@ -98,6 +99,18 @@ type Notification = {
   readAt: string | null;
   createdAt: string;
   lastError?: string;
+};
+const emptySedimentSummary: SedimentSummary = {
+  total: 0,
+  byQuadrant: {
+    1: { count: 0, earliestDueAt: null },
+    2: { count: 0, earliestDueAt: null },
+    3: { count: 0, earliestDueAt: null },
+    4: { count: 0, earliestDueAt: null },
+  },
+  earliestDueAt: null,
+  thresholdAt: new Date(0).toISOString(),
+  serverNow: new Date(0).toISOString(),
 };
 type Preferences = {
   pushEnabled: boolean;
@@ -278,6 +291,7 @@ export default function Orbit() {
     [error, setError] = useState(''),
     [celebration, setCelebration] = useState<string | null>(null);
   const [stellarOutcome, setStellarOutcome] = useState<StellarOutcome | null>(null);
+  const [sedimentSummary, setSedimentSummary] = useState<SedimentSummary>(emptySedimentSummary);
   const [undoDeleted, setUndoDeleted] = useState<Item | null>(null);
   const [archiveRows, setArchiveRows] = useState<Item[]>([]),
     [archiveTotal, setArchiveTotal] = useState(0),
@@ -330,13 +344,14 @@ export default function Orbit() {
     const generation = ++requestGeneration.current;
     setDataLoading(true);
     try {
-      const [rows, ps, es, rs, ns, cs] = await Promise.all([
+      const [rows, ps, es, rs, ns, cs, sediment] = await Promise.all([
         api<{ items: Item[]; total: number }>(`workspaces/${wid}/items?limit=1000`),
         api<Project[]>(`workspaces/${wid}/projects`),
         api<Event[]>(`workspaces/${wid}/events`),
         api<Report[]>(`workspaces/${wid}/reports`),
         api<Notification[]>(`workspaces/${wid}/notifications`),
         api<Config>(`workspaces/${wid}/settings`),
+        api<SedimentPage<Item>>(`workspaces/${wid}/items/sediment?limit=1`),
       ]);
       if (generation !== requestGeneration.current) return;
       setItems(rows.items);
@@ -345,6 +360,7 @@ export default function Orbit() {
       setReports(rs);
       setNotifications(ns);
       setConfig(cs);
+      setSedimentSummary(sediment.summary);
       if (rows.total > 1000) setError('当前工作台展示最近 1000 条事项；时光回放支持完整分页检索。');
       setSelected((current) =>
         current ? rows.items.find((x) => x.id === current.id) || current : null,
@@ -365,6 +381,19 @@ export default function Orbit() {
       if (generation === requestGeneration.current) setDataLoading(false);
     }
   }, [wid]);
+  const loadSediment = useCallback(
+    async ({ page, quadrant, query }: { page: number; quadrant: number; query: string }) => {
+      const params = new URLSearchParams({ page: String(page), limit: '50' });
+      if (quadrant) params.set('quadrant', String(quadrant));
+      if (query.trim()) params.set('q', query.trim());
+      const result = await api<SedimentPage<Item>>(
+        `workspaces/${wid}/items/sediment?${params.toString()}`,
+      );
+      setSedimentSummary(result.summary);
+      return result;
+    },
+    [wid],
+  );
   useEffect(() => {
     boot();
     setNow(new Date());
@@ -612,6 +641,26 @@ export default function Orbit() {
     } catch (e) {
       setError((e as Error).message);
       return false;
+    }
+  }
+  async function bulkRescheduleSediment(
+    entries: { id: string; version: number }[],
+    dueAt: string,
+  ): Promise<boolean> {
+    if (busy) return false;
+    setBusy('sediment-reschedule');
+    setError('');
+    try {
+      await api(`${prefix}/items/bulk-reschedule`, 'POST', { items: entries, dueAt });
+      notify(`已重新安排 ${entries.length} 件事项。`);
+      await refresh();
+      return true;
+    } catch (cause) {
+      const message = (cause as Error).message;
+      setError(message);
+      throw cause;
+    } finally {
+      setBusy('');
     }
   }
   async function parseIntent(text = intent) {
@@ -1345,6 +1394,9 @@ export default function Orbit() {
                       setDraftMode('manual');
                     }}
                     onInbox={() => setTab('inbox')}
+                    sediment={sedimentSummary}
+                    onLoadSediment={loadSediment}
+                    onBulkReschedule={bulkRescheduleSediment}
                   />
                 </>
               )}

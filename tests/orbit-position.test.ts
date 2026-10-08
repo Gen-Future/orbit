@@ -129,3 +129,22 @@ test('密集标签分页而非重叠，真实锚点在手机和桌面均保持�
       }
   }
 });
+
+test('时间沉积带为右侧象限标签预留空间', () => {
+  const width = 1440;
+  const pages = layoutStarLabels(
+    [
+      { id: 'right-top', quadrant: 1, anchor: { x: 1320, y: 180 } },
+      { id: 'right-bottom', quadrant: 2, anchor: { x: 1320, y: 520 } },
+      { id: 'left-top', quadrant: 3, anchor: { x: 120, y: 180 } },
+    ],
+    width,
+    700,
+    false,
+    88,
+  );
+  for (const item of pages.flat()) {
+    if ([1, 2].includes(item.quadrant)) assert.ok(item.label.x + 88 <= width - 88);
+    else assert.ok(item.label.x < width / 2);
+  }
+});

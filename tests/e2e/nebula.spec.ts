@@ -8,6 +8,26 @@ async function enterMap(page: Page) {
   await page.getByRole('button', { name: '四象限', exact: true }).click();
   await expect(page.locator('.nebula-matrix')).toBeVisible();
 }
+async function createSedimentItems(page: Page, workspaceId: string, count = 4) {
+  const dueAt = new Date(Date.now() - 10 * 864e5).toISOString();
+  for (let index = 0; index < count; index++) {
+    const response = await page.request.post(
+      `http://localhost:3001/api/v1/workspaces/${workspaceId}/items`,
+      {
+        headers: {
+          Origin: 'http://localhost:3001',
+          'Idempotency-Key': randomUUID(),
+        },
+        data: {
+          title: `沉积事项 ${index + 1}`,
+          quadrant: (index % 4) + 1,
+          dueAt,
+        },
+      },
+    );
+    expect(response.status()).toBe(201);
+  }
+}
 test('星图桌面与手机：画布、坐标、沉浸、缩放及减少动效', async ({ browser }) => {
   for (const [name, width, height] of [
     ['desktop', 1440, 1000],
@@ -185,6 +205,71 @@ test('星体拖动：象限内保存、跨象限、刷新、取消、错误回�
   await star.click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await context.close();
+});
+
+test('时间沉积带：桌面星团、手机入口、抽屉完成与批量改期', async ({ browser }) => {
+  for (const [name, width, height] of [
+    ['desktop', 1440, 1000],
+    ['mobile', 390, 844],
+  ] as const) {
+    const context = await browser.newContext({
+      viewport: { width, height },
+      reducedMotion: 'reduce',
+    });
+    const page = await context.newPage();
+    const registered = await page.request.post('http://localhost:3001/api/v1/auth/register', {
+      headers: { Origin: 'http://localhost:3001' },
+      data: {
+        email: `sediment-${name}-${randomUUID()}@orbit.test`,
+        password: 'Orbit-sediment-test-password',
+        name: 'Sediment tester',
+      },
+    });
+    expect(registered.status()).toBe(200);
+    const me = await page.request.get('http://localhost:3001/api/v1/auth/me');
+    const workspaceId = (await me.json()).memberships[0].workspace.id;
+    await createSedimentItems(page, workspaceId);
+    await page.goto('http://localhost:3001');
+    await enterMap(page);
+    await expect(page.locator('.nebula-item').filter({ hasText: '沉积事项' })).toHaveCount(0);
+    await expect(page.locator('.nebula-pagination')).toContainText('4 件沉积');
+    if (name === 'desktop') {
+      await expect(page.locator('.sediment-cluster')).toHaveCount(4);
+      await expect(page.locator('.sediment-mobile-trigger')).toBeHidden();
+      await page.locator('.sediment-cluster').first().click();
+    } else {
+      await expect(page.locator('.sediment-clusters')).toBeHidden();
+      await page.getByRole('button', { name: '打开时间沉积带，共 4 件事项' }).click();
+    }
+    await expect(page.getByRole('dialog', { name: '时间沉积带' })).toBeVisible();
+    await expect(page.locator('.sediment-row')).toHaveCount(name === 'desktop' ? 1 : 4);
+    await page.screenshot({
+      path: `.impeccable/review/sediment-${name}.png`,
+      animations: 'disabled',
+    });
+    if (name === 'desktop') {
+      await page.getByRole('button', { name: '全部', exact: true }).click();
+      await expect(page.locator('.sediment-row')).toHaveCount(4);
+      await page.locator('.sediment-row').first().getByRole('checkbox').check();
+      await page.locator('.sediment-row').nth(1).getByRole('checkbox').check();
+      const future = new Date(Date.now() + 2 * 864e5).toISOString().slice(0, 16);
+      await page.getByLabel('新的截止时间').fill(future);
+      await page.getByRole('button', { name: '重新安排', exact: true }).click();
+      await expect(page.locator('.sediment-message')).toContainText('已重新安排 2 件事项');
+      await expect(page.locator('.sediment-row')).toHaveCount(2);
+      await page
+        .getByRole('button', { name: /完成 沉积事项/ })
+        .first()
+        .click();
+      await expect(page.locator('.sediment-row')).toHaveCount(1);
+    }
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: '时间沉积带' })).toBeHidden();
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    ).toBeTruthy();
+    await context.close();
+  }
 });
 test('手机触屏可以跨象限拖动', async ({ browser }) => {
   const context = await browser.newContext({

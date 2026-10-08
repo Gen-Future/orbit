@@ -13,6 +13,7 @@ Use the user's configured `ORBIT_URL`, `ORBIT_WORKSPACE_ID`, and `ORBIT_TOKEN`. 
 - `GET /projects` returns valid project IDs. Never guess cross-workspace IDs.
 - `GET /items?q=keyword&all=true&page=1&limit=100` queries items, including archived when `all=true`. Response: `{items,total,page,limit}`. Paginate until the requested range is covered.
 - `GET /items/:id` returns the latest version, children, pending reminders and events.
+- `GET /items/sediment?page=1&limit=50` returns unfinished Q1-Q4 items overdue by at least 168 hours plus global quadrant counts. Use `q` or `quadrant=1..4` to narrow the page.
 - `GET /events?itemId=...&before=ISO_TIMESTAMP` returns newest events first (200 per page).
 
 ## Write
@@ -25,6 +26,7 @@ All item/project/report writes require a fresh `Idempotency-Key` (UUID). Reuse t
 - `POST /ai` body: `{text,skillId:"capture-item"}`. Returns `{draft,mode,message}`. `mode: rules` is a rule-based fallback, not AI output.
 - `POST /capture` confirms a draft: `{title,notes,quadrant,projectId?,dueAt?,reminderAt?,subtasks:[],source:"ai"|"rules"|"manual"}`.
 - `PATCH /items/:id` includes the latest `version` and only fields being changed. Complete with `{version,status:"done"}`. Archive with `{version,archived:true}`; history is preserved.
+- `POST /items/bulk-reschedule` atomically updates 1-100 sediment items: `{items:[{id,version}],dueAt}`. The new dueAt must be in the future; a stale item makes the whole request fail.
 - `POST /items/:id/snooze` body: `{minutes:60}`.
 - `POST /reports` body: `{startAt,endAt}`. Range is start-inclusive, end-exclusive, at most 93 days. Saves a draft; never sends it externally.
 - `POST /skills/:id/run` executes a manifest capability. Generated changes are previews unless the manifest says otherwise. Reports save drafts only.

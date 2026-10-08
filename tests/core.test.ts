@@ -9,6 +9,8 @@ import {
   itemPatch,
   draftSchema,
   isPositionOnlyEvent,
+  isSedimentItem,
+  sedimentAfterMs,
 } from '../packages/core/src';
 import { passwordHash, verifyPassword, encrypt, decrypt } from '../src/lib/security';
 test('角色矩阵：viewer 只读，未知角色拒绝', () => {
@@ -86,6 +88,29 @@ test('时光回放识别新旧纯星体位置事件', () => {
     }),
     false,
   );
+});
+
+test('时间沉积带在逾期满七天时收纳全部未完成事项', () => {
+  const now = Date.parse('2026-10-08T12:00:00Z');
+  const item = {
+    dueAt: new Date(now - sedimentAfterMs).toISOString(),
+    status: 'open',
+    quadrant: 1,
+    archivedAt: null,
+    deletedAt: null,
+  };
+  assert.equal(isSedimentItem(item, now), true);
+  assert.equal(
+    isSedimentItem({ ...item, dueAt: new Date(now - sedimentAfterMs + 1).toISOString() }, now),
+    false,
+  );
+  assert.equal(isSedimentItem({ ...item, status: 'doing' }, now), true);
+  assert.equal(isSedimentItem({ ...item, status: 'blocked' }, now), true);
+  assert.equal(isSedimentItem({ ...item, status: 'done' }, now), false);
+  assert.equal(isSedimentItem({ ...item, status: 'cancelled' }, now), false);
+  assert.equal(isSedimentItem({ ...item, dueAt: null }, now), false);
+  assert.equal(isSedimentItem({ ...item, quadrant: 0 }, now), false);
+  assert.equal(isSedimentItem({ ...item, archivedAt: new Date(now).toISOString() }, now), false);
 });
 
 test('中文时间与四象限否定含义', () => {

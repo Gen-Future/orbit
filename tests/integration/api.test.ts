@@ -16,6 +16,7 @@ let cookieA = '',
   projectB = '',
   endpointId = '',
   token = '',
+  viewerCookie = '',
   version = 1;
 async function request(
   path: string,
@@ -171,6 +172,7 @@ test('真实 API / PostgreSQL 业务与隔离闭环', async (t) => {
       { email, password: 'Viewer-test-password' },
       { cookie: '' },
     );
+    viewerCookie = login.cookie;
     assert.equal(
       (await request(`workspaces/${widA}/items`, 'GET', undefined, { cookie: login.cookie }))
         .status,
@@ -468,6 +470,90 @@ test('真实 API / PostgreSQL 业务与隔离闭环', async (t) => {
     const reset = await request(path, 'PATCH', { version: 2, quadrant: 1 });
     assert.equal(reset.body.orbitX, null);
     assert.equal(reset.body.orbitPlacedAt, null);
+  });
+  await t.test('时间沉积带聚合、隔离、权限与批量改期事务', async () => {
+    const marker = `sediment-${unique}`;
+    const oldDueAt = new Date(Date.now() - 9 * 864e5);
+    const beforeSummary = (await request(`workspaces/${widA}/items/sediment?limit=1`)).body.summary;
+    await db.item.createMany({
+      data: Array.from({ length: 1001 }, (_, index) => ({
+        workspaceId: widA,
+        title: `${marker}-${index}`,
+        quadrant: (index % 4) + 1,
+        status: index % 3 === 0 ? 'doing' : index % 3 === 1 ? 'blocked' : 'open',
+        dueAt: oldDueAt,
+      })),
+    });
+    const sediment = await request(`workspaces/${widA}/items/sediment?q=${marker}`);
+    assert.equal(sediment.status, 200, JSON.stringify(sediment.body));
+    assert.equal(sediment.body.total, 1001);
+    assert.equal(sediment.body.items.length, 50);
+    assert.equal(
+      Object.values(sediment.body.summary.byQuadrant).reduce(
+        (sum: number, group: unknown) => sum + (group as { count: number }).count,
+        0,
+      ),
+      beforeSummary.total + 1001,
+    );
+    assert.ok(Date.parse(sediment.body.summary.thresholdAt) <= Date.now() - 7 * 864e5 + 1000);
+    assert.equal(
+      (
+        await request(`workspaces/${widB}/items/sediment?q=${marker}`, 'GET', undefined, {
+          cookie: cookieB,
+        })
+      ).body.total,
+      0,
+    );
+    assert.equal(
+      (
+        await request(
+          `workspaces/${widA}/items/bulk-reschedule`,
+          'POST',
+          {
+            items: [{ id: sediment.body.items[0].id, version: sediment.body.items[0].version }],
+            dueAt: new Date(Date.now() + 864e5).toISOString(),
+          },
+          { cookie: viewerCookie },
+        )
+      ).status,
+      403,
+    );
+    const [first, second] = sediment.body.items;
+    const future = new Date(Date.now() + 2 * 864e5).toISOString();
+    const conflict = await request(`workspaces/${widA}/items/bulk-reschedule`, 'POST', {
+      items: [
+        { id: first.id, version: first.version },
+        { id: second.id, version: second.version + 1 },
+      ],
+      dueAt: future,
+    });
+    assert.equal(conflict.status, 409);
+    assert.equal(
+      (await db.item.findUniqueOrThrow({ where: { id: first.id } })).dueAt?.getTime(),
+      oldDueAt.getTime(),
+    );
+    const key = randomUUID();
+    const input = {
+      items: [
+        { id: first.id, version: first.version },
+        { id: second.id, version: second.version },
+      ],
+      dueAt: future,
+    };
+    const changed = await request(`workspaces/${widA}/items/bulk-reschedule`, 'POST', input, {
+      key,
+    });
+    assert.equal(changed.status, 200, JSON.stringify(changed.body));
+    assert.equal(changed.body.items.length, 2);
+    assert.equal(
+      (await request(`workspaces/${widA}/items/bulk-reschedule`, 'POST', input, { key })).body
+        .items[0].version,
+      changed.body.items[0].version,
+    );
+    const after = await db.item.findMany({ where: { id: { in: [first.id, second.id] } } });
+    assert.ok(after.every((item) => item.dueAt?.toISOString() === future));
+    assert.ok(after.every((item) => item.orbitX === null && item.orbitY === null));
+    assert.equal((await request(`workspaces/${widA}/items/sediment?q=${marker}`)).body.total, 999);
   });
   await t.test('黑洞删除：隔离、幂等、子事项、停止提醒、审计及恢复', async () => {
     const root = (

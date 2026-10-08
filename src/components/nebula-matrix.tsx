@@ -43,10 +43,13 @@ import {
   type OrbitPoint,
   type PositionedItem,
 } from '../../packages/core/src/orbit-position';
+import { isSedimentItem } from '../../packages/core/src';
 
 import { layoutStarLabels } from '../../packages/core/src/orbit-labels';
+import { SedimentBelt, type SedimentPage, type SedimentSummary } from './sediment-belt';
 export type NebulaItem = PositionedItem & {
   title: string;
+  version: number;
   projectId: string | null;
   project?: { name: string; color: string } | null;
 };
@@ -175,6 +178,9 @@ export function NebulaMatrix<T extends NebulaItem>({
   onSelect,
   onAdd,
   onInbox,
+  sediment,
+  onLoadSediment,
+  onBulkReschedule,
 }: {
   items: T[];
   now: Date | null;
@@ -200,6 +206,13 @@ export function NebulaMatrix<T extends NebulaItem>({
   onSelect: (item: T) => void;
   onAdd: (quadrant: number) => void;
   onInbox: () => void;
+  sediment: SedimentSummary;
+  onLoadSediment: (input: {
+    page: number;
+    quadrant: number;
+    query: string;
+  }) => Promise<SedimentPage<T>>;
+  onBulkReschedule: (items: { id: string; version: number }[], dueAt: string) => Promise<boolean>;
 }) {
   const fieldRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<HTMLDivElement>(null);
@@ -253,6 +266,7 @@ export function NebulaMatrix<T extends NebulaItem>({
         .filter(
           (item) =>
             item.quadrant > 0 &&
+            !isSedimentItem(item, Date.parse(sediment.serverNow)) &&
             (status === 'all' ||
               (status === 'active' ? item.status !== 'done' : item.status === status)) &&
             (!query ||
@@ -262,7 +276,7 @@ export function NebulaMatrix<T extends NebulaItem>({
             (!project || item.projectId === project),
         )
         .sort((a, b) => a.id.localeCompare(b.id)),
-    [items, query, project, status],
+    [items, query, project, status, sediment.serverNow],
   );
   const pages = useMemo(
     () =>
@@ -275,8 +289,9 @@ export function NebulaMatrix<T extends NebulaItem>({
         frame.width,
         frame.height,
         frame.nodeWidth < 100,
+        sediment.total ? (frame.nodeWidth < 100 ? 48 : 88) : 0,
       ),
-    [candidates, time, frame],
+    [candidates, time, frame, sediment.total],
   );
   const pageCount = pages.length;
   const currentPage = Math.min(page, pageCount - 1);
@@ -846,10 +861,16 @@ export function NebulaMatrix<T extends NebulaItem>({
                     ? '这片星域，暂时没有匹配。'
                     : status === 'done'
                       ? '完成的星体会在这里留下光。'
-                      : '为你的宇宙，点亮第一颗星。'}
+                      : sediment.total
+                        ? '长期逾期事项，已进入时间沉积带。'
+                        : '为你的宇宙，点亮第一颗星。'}
                 </h3>
                 <p>
-                  {query || project ? '调整筛选，重新寻找。' : '记录一件事，让注意力有个落点。'}
+                  {query || project
+                    ? '调整筛选，重新寻找。'
+                    : sediment.total
+                      ? '从右侧打开沉积带，重新安排它们。'
+                      : '记录一件事，让注意力有个落点。'}
                 </p>
                 {writable && !query && !project && (
                   <button className="primary-button" aria-label="放入星图" onClick={() => onAdd(2)}>
@@ -860,6 +881,16 @@ export function NebulaMatrix<T extends NebulaItem>({
             )}
           </div>
         </div>
+        <SedimentBelt
+          summary={sediment}
+          zone={zone}
+          writable={writable}
+          busy={busy}
+          load={onLoadSediment}
+          onComplete={onComplete}
+          onOpen={onSelect}
+          onBulkReschedule={onBulkReschedule}
+        />
         {((drag?.moved && writable && !busy) ||
           resolving?.kind === 'delete' ||
           flight?.kind === 'delete') && (
@@ -954,6 +985,7 @@ export function NebulaMatrix<T extends NebulaItem>({
         <div className="nebula-pagination">
           <span>
             {candidates.length ? `${visible.length}` : '0'} / {candidates.length} 颗星
+            {sediment.total ? ` · ${sediment.total} 件沉积` : ''}
           </span>
           {pageCount > 1 && (
             <>

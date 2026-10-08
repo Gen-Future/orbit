@@ -26,9 +26,16 @@ import {
   itemInSpace,
   json,
   signals,
+  bulkRescheduleItems,
 } from '@/lib/items';
 import { activeModelEndpoint, capture, probeModelEndpoint, reportDraft } from '@/lib/ai';
-import { skills, scopes, roles, draftSchema } from '../../../../../packages/core/src';
+import {
+  skills,
+  scopes,
+  roles,
+  draftSchema,
+  sedimentAfterMs,
+} from '../../../../../packages/core/src';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 type Context = { params: Promise<{ path?: string[] }> };
@@ -367,6 +374,78 @@ async function handler(req: Request, context: Context) {
     if (method !== 'GET') await rateLimit(`writes:${actor.id}`, 100);
     if (resource === 'items') {
       if (method === 'GET') {
+        if (id === 'sediment') {
+          const serverNow = new Date();
+          const thresholdAt = new Date(serverNow.getTime() - sedimentAfterMs);
+          const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
+          const limit = Math.min(50, Math.max(1, Number(url.searchParams.get('limit')) || 50));
+          const q = url.searchParams.get('q')?.trim();
+          const quadrantValue = Number(url.searchParams.get('quadrant'));
+          const quadrant = [1, 2, 3, 4].includes(quadrantValue) ? quadrantValue : null;
+          const baseWhere: Prisma.ItemWhereInput = {
+            workspaceId: wid,
+            dueAt: { lte: thresholdAt },
+            status: { in: ['open', 'doing', 'blocked'] },
+            quadrant: { in: [1, 2, 3, 4] },
+            archivedAt: null,
+            deletedAt: null,
+          };
+          const filteredWhere: Prisma.ItemWhereInput = {
+            ...baseWhere,
+            ...(quadrant ? { quadrant } : {}),
+            ...(q
+              ? {
+                  OR: [
+                    { title: { contains: q, mode: 'insensitive' } },
+                    { notes: { contains: q, mode: 'insensitive' } },
+                    { project: { name: { contains: q, mode: 'insensitive' } } },
+                  ],
+                }
+              : {}),
+          };
+          const [items, total, groups, earliest] = await Promise.all([
+            db.item.findMany({
+              where: filteredWhere,
+              include: { project: true },
+              orderBy: [{ dueAt: 'asc' }, { createdAt: 'asc' }],
+              take: limit,
+              skip: (page - 1) * limit,
+            }),
+            db.item.count({ where: filteredWhere }),
+            db.item.groupBy({
+              by: ['quadrant'],
+              where: baseWhere,
+              _count: { _all: true },
+              _min: { dueAt: true },
+            }),
+            db.item.aggregate({ where: baseWhere, _min: { dueAt: true } }),
+          ]);
+          const byQuadrant = Object.fromEntries(
+            [1, 2, 3, 4].map((value) => {
+              const group = groups.find((entry) => entry.quadrant === value);
+              return [
+                value,
+                {
+                  count: group?._count._all || 0,
+                  earliestDueAt: group?._min.dueAt?.toISOString() || null,
+                },
+              ];
+            }),
+          );
+          return ok({
+            items,
+            total,
+            page,
+            limit,
+            summary: {
+              total: groups.reduce((sum, group) => sum + group._count._all, 0),
+              byQuadrant,
+              earliestDueAt: earliest._min.dueAt?.toISOString() || null,
+              thresholdAt: thresholdAt.toISOString(),
+              serverNow: serverNow.toISOString(),
+            },
+          });
+        }
         if (id) {
           const item = await db.item.findFirst({
             where: { id, workspaceId: wid },
@@ -431,6 +510,25 @@ async function handler(req: Request, context: Context) {
         return ok({ items, total, page, limit });
       }
       const input = await body(req);
+      if (method === 'POST' && id === 'bulk-reschedule') {
+        const value = z
+          .object({
+            items: z
+              .array(
+                z.object({ id: z.string().min(1), version: z.number().int().positive() }).strict(),
+              )
+              .min(1)
+              .max(100),
+            dueAt: z.string().datetime({ offset: true }),
+          })
+          .strict()
+          .parse(input);
+        return ok(
+          await mutation(actor, key, { route: 'bulk-reschedule', value }, (tx) =>
+            bulkRescheduleItems(tx, actor, value.items, value.dueAt),
+          ),
+        );
+      }
       if (id && (method === 'DELETE' || (method === 'POST' && path[4] === 'restore'))) {
         const value = z.object({ version: z.number().int().positive() }).strict().parse(input);
         const deleted = method === 'DELETE';

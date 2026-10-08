@@ -17,6 +17,8 @@ OWN-WORLD: Existing deep navy nebula and coral/lime/violet/cyan priority stars; 
 
 STORY: Login directly into the map, capture a natural-language task at the bottom, drag to prioritize. Drag into the central sun to complete, into the temporary black hole to delete. Open 工作舱 only for reports, projects, history, settings or workspace switching.
 
+TIME SEDIMENT: Unfinished items overdue by 168 hours leave the normal label layout and collect in a right-edge belt outside the coordinate semantics. Four desktop clusters preserve quadrant color; mobile uses one edge trigger. The drawer supports scanning, completion and atomic bulk rescheduling without persisting a separate sediment state.
+
 FIRST VIEWPORT: Compact orbit brand / 工作舱 at the top left, small filter, notification, focus and capture controls at the right. No permanent sidebar or management breadcrumb. The coordinate map fills the middle; sun sits exactly on the origin. An independent bottom capture form and map controls remain reachable on phone and desktop.
 
 FORM: Code-led extension of the existing procedural coordinate world; the user's sun/black-hole brief determines the form. The signature response is a curved shrinking stellar flight to the sun or black hole after the server acknowledges success. Failure preserves the item; deletion is undoable and distinct from completion. Reduced motion retains truthful text feedback and removes spatial flight.

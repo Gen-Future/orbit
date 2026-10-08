@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import { db } from './db';
 import { hash, type Actor } from './security';
 import { invariant } from './errors';
-import { itemInput, itemPatch } from '../../packages/core/src';
+import { isSedimentItem, itemInput, itemPatch, sedimentAfterMs } from '../../packages/core/src';
 import { boundPosition, quadrantAt } from '../../packages/core/src/orbit-position';
 export const json = (value: unknown): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value));
 export async function mutation<T>(
@@ -198,6 +198,37 @@ export async function signals(workspaceId: string) {
       .sort((a, b) => a.quadrant - b.quadrant)
       .slice(0, 3),
   };
+}
+
+export async function bulkRescheduleItems(
+  tx: Prisma.TransactionClient,
+  actor: Actor,
+  entries: { id: string; version: number }[],
+  dueAt: string,
+  now = new Date(),
+) {
+  const ids = entries.map((entry) => entry.id);
+  invariant(new Set(ids).size === ids.length, 400, '批量事项不能重复');
+  invariant(new Date(dueAt).getTime() > now.getTime(), 400, '新的截止时间必须晚于当前时间');
+  const items = await tx.item.findMany({
+    where: { id: { in: ids }, workspaceId: actor.workspaceId },
+  });
+  invariant(items.length === entries.length, 404, '部分事项不存在');
+  const versions = new Map(entries.map((entry) => [entry.id, entry.version]));
+  invariant(
+    items.every((item) => item.version === versions.get(item.id) && isSedimentItem(item, now)),
+    409,
+    '沉积事项已发生变化，请刷新后重试',
+  );
+  const updated = [];
+  for (const item of items)
+    updated.push(
+      await updateItem(tx, actor, item.id, {
+        version: item.version,
+        dueAt,
+      }),
+    );
+  return { items: updated, thresholdAt: new Date(now.getTime() - sedimentAfterMs).toISOString() };
 }
 
 // Deletion is a separate lifecycle state. Events and report references remain intact.

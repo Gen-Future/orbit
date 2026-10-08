@@ -16,7 +16,9 @@ Base: `/api/v1/workspaces/{workspaceId}`. JSON only. Authenticate by HttpOnly se
 |---|---|---|
 | GET | `/items` | `{items,total,page,limit}`; filters `q`, `projectId`, `status`, `archived=true`, `all=true`, `deleted=true`, `from`, `to`; default 500, max 1000 per page |
 | GET | `/items/:id` | Item, project, children, pending reminders, latest 100 events |
+| GET | `/items/sediment` | Items overdue by at least 168 hours; filters `q`, `quadrant`, `page`, `limit`; returns global quadrant summary |
 | POST | `/items` | Create item; fields title, notes, quadrant, projectId, parentId, dueAt, occurredAt, reminderAt |
+| POST | `/items/bulk-reschedule` | Atomically reschedule 1–100 sediment items with `{items:[{id,version}],dueAt}` |
 | PATCH | `/items/:id` | Update with version; additional status and archived fields |
 | DELETE | `/items/:id` | `{version}`; reversible deletion, returns `{item, affectedIds}` |
 | POST | `/items/:id/restore` | `{version}`; restore deletion, returns `{item, affectedIds}` |
@@ -76,6 +78,10 @@ AI payloads are untrusted data: output is schema checked, project IDs are revali
 返回事项包含三个可空的坐标字段。空值表示尚未手动放置。修改象限或截止时间会清除旧落点，使星图重新安排轨道；修改标题、笔记、状态不会重置坐标。PATCH 未提交的字段保持不变。
 
 自动漂移仅为前端展示：截止前 14 天开始，向上移动但始终留在当前象限，不产生后台写入或审计噪声。手动拖动保存新锚点，后续按该锚点继续漂移；已逾期事项的手动落点保持稳定。无截止时间和已完成事项不自动漂移。
+
+未完成且截止时间已过去满 168 小时的 Q1–Q4 事项会进入“时间沉积带”。这是派生视图，不修改象限、坐标或历史。`GET /items/sediment` 使用服务端时间计算阈值，并返回 `{items,total,page,limit,summary}`；`summary` 始终表示整个空间的沉积总量和四象限聚合，不受当前搜索与象限分页筛选影响。
+
+批量改期要求新的截止时间晚于服务端当前时间，全部事项必须仍处于沉积状态且版本匹配。任一事项无效时事务整体回滚。成功改期沿用普通事项更新规则，清除旧坐标锚点、递增版本并追加 `updated` 事件。
 
 ## 完成、删除与恢复
 
