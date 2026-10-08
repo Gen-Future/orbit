@@ -270,38 +270,38 @@
   bottom: 7px;
 }
 .nebula-axis-label {
-  min-width: 88px;
-  display: grid;
-  grid-template-columns: 1fr auto;
+  display: inline-flex;
   align-items: center;
-  gap: 0 5px;
-  padding: 7px 9px;
-  color: #f4f7fc;
-  background: #0b1423ed;
-  border: 1px solid #7188a777;
-  border-radius: 6px;
-  box-shadow: 0 6px 18px #02050b80;
-  line-height: 1.05;
+  gap: 6px;
+  min-width: 0;
+  padding: 3px 0;
+  color: #c8d6e8;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow:
+    0 2px 9px #03060c,
+    0 0 3px #03060c;
 }
-.nebula-axis-label small {
-  grid-column: 1 / -1;
-  color: #afc0d5;
-  font-size: 8px;
-  font-weight: 500;
-  line-height: 1.2;
+.nebula-axis-label::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border: 1px solid currentColor;
+  transform: rotate(45deg);
+  opacity: 0.8;
 }
 .nebula-axis-label strong {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0;
 }
 .nebula-axis-label.axis-high {
   color: #fff0c3;
-  border-color: #f2c86d8f;
-  background: #191a1ced;
-}
-.nebula-axis-label.axis-high small {
-  color: #d8c79e;
 }
 .nebula-origin {
   position: absolute;
@@ -850,25 +850,15 @@
   animation: none !important;
   transition: none !important;
 }
-/* Give the axis its own space, and use compact labels on a pocket-sized map. */
-.nebula-q1,
-.nebula-q2 {
-  padding-left: 52px;
-}
+/* Axis labels sit on the coordinate line, leaving the star field unobstructed. */
 .nebula-axis-y span {
-  left: 0;
-  transform: translateX(-50%);
+  left: auto;
+  right: 10px;
+  transform: none;
 }
 @media (max-width: 700px) {
-  .nebula-axis-label {
-    min-width: 64px;
-    padding: 5px 7px;
-  }
-  .nebula-axis-label small {
-    display: none;
-  }
   .nebula-axis-label strong {
-    font-size: 11px;
+    font-size: 10px;
   }
   .nebula-axis-x span {
     top: 6px;
@@ -891,10 +881,6 @@
   }
   .nebula-quadrant p {
     display: none;
-  }
-  .nebula-q1,
-  .nebula-q2 {
-    padding-left: 36px;
   }
   .nebula-quadrant-heading {
     gap: 4px;
