@@ -26,6 +26,8 @@ The Worker supports one active scanner concurrency per queue. Jobs use retries a
 
 ## AI
 
+`AIEndpoint` is a system-level registry. Exactly one endpoint is selected for normal calls by the `active` flag; activating an endpoint deactivates the others in the same transaction. Only users with `isSystemAdmin` can list, test, create, update or delete endpoints. Workspace-level configuration is retained only for migration compatibility and is not used for model calls.
+
 Only the active task/project context is sent, never another workspace. Model key encryption depends on ENCRYPTION_KEY; back up this key with separate access control. Input audit is hashed, while structured output and source IDs remain in the workspace. Model processing cannot autonomously call tools or send messages. A valid proposal is still only a draft. Deterministic report content remains available when AI is unavailable; AI highlights are labeled for review and require source IDs from the factual input.
 
 ## Limits

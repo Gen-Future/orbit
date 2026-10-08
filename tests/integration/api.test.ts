@@ -14,6 +14,7 @@ let cookieA = '',
   widB = '',
   itemId = '',
   projectB = '',
+  endpointId = '',
   token = '',
   version = 1;
 async function request(
@@ -58,7 +59,9 @@ test('真实 API / PostgreSQL 业务与隔离闭环', async (t) => {
       if (who === 'a') cookieA = response.cookie;
       else cookieB = response.cookie;
     }
-    widA = (await request('auth/me')).body.memberships[0].workspace.id;
+    const meA = (await request('auth/me')).body;
+    widA = meA.memberships[0].workspace.id;
+    await db.user.update({ where: { id: meA.user.id }, data: { isSystemAdmin: true } });
     widB = (await request('auth/me', 'GET', undefined, { cookie: cookieB })).body.memberships[0]
       .workspace.id;
     assert.notEqual(widA, widB);
@@ -70,6 +73,11 @@ test('真实 API / PostgreSQL 业务与隔离闭环', async (t) => {
         { cookie: cookieB },
       )
     ).body.id;
+    assert.equal((await request('admin/overview')).status, 200);
+    assert.equal(
+      (await request('admin/overview', 'GET', undefined, { cookie: cookieB })).status,
+      403,
+    );
   });
   await t.test('拒绝未登录和跨空间访问', async () => {
     assert.equal(
@@ -223,11 +231,32 @@ test('真实 API / PostgreSQL 业务与隔离闭环', async (t) => {
     });
     await new Promise<void>((resolve) => model.listen(55591, '127.0.0.1', resolve));
     try {
-      await request(`workspaces/${widA}/settings/ai`, 'POST', {
+      const endpoint = await request('admin/ai-endpoints', 'POST', {
+        name: `Mock ${unique}`,
         provider: 'openai',
         baseUrl: 'http://127.0.0.1:55591',
         model: 'mock',
+        active: true,
       });
+      assert.equal(endpoint.status, 201, JSON.stringify(endpoint.body));
+      endpointId = endpoint.body.id;
+      const listed = await request('admin/ai-endpoints');
+      assert.equal(listed.body[0].hasKey, false);
+      assert.equal('encryptedKey' in listed.body[0], false);
+      assert.equal(
+        (await request(`admin/ai-endpoints/${endpointId}/test`, 'POST', {})).status,
+        200,
+      );
+      assert.equal(
+        (
+          await request(`workspaces/${widA}/settings/ai`, 'POST', {
+            provider: 'openai',
+            baseUrl: 'http://127.0.0.1:55591',
+            model: 'mock',
+          })
+        ).status,
+        403,
+      );
       const count = await db.item.count({ where: { workspaceId: widA } });
       const result = await request(`workspaces/${widA}/ai`, 'POST', {
         text: '明天下午3点提醒我确认方案',
@@ -508,5 +537,6 @@ test('真实 API / PostgreSQL 业务与隔离闭环', async (t) => {
     assert.ok((await request(`workspaces/${widA}/items/${earlier.id}`)).body.deletedAt);
     assert.equal((await request(route)).body.events[0].type, 'undeleted');
   });
+  if (endpointId) await request(`admin/ai-endpoints/${endpointId}`, 'DELETE');
   await db.$disconnect();
 });

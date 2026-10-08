@@ -21,7 +21,7 @@ AI 参与捕捉、整理、提醒、复盘和反馈主流程，而不是作为�
 高频工作记录、项目推进、四象限整理、主动提醒和周报复盘；桌面和手机跨设备使用。
 
 ## Capabilities and Constraints
-MVP 包含事项、项目、四象限、永久事件历史、自然语言输入、基础主动提醒、PWA 和开放 Skill 接口。自托管优先，兼容 OpenAI-compatible 和 Ollama。首版不做原生 App、截图识别和公开 Skill 市场。
+MVP 包含事项、项目、四象限、永久事件历史、自然语言输入、基础主动提醒、PWA、开放 Skill 接口与系统管理员控制台。自托管优先，系统级 AI 端点统一服务所有工作空间，兼容 OpenAI-compatible 和 Ollama。首版不做原生 App、截图识别和公开 Skill 市场。
 
 ## Brand Commitments
 产品名为 Orbit。视觉要大胆、年轻、AI native，拥有游戏感但保持高频工作所需的清晰度。

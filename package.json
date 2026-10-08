@@ -12,6 +12,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "node --env-file=.env --import tsx prisma/seed.ts",
+    "admin:provision": "node --env-file-if-exists=.env --import tsx scripts/provision-admin.ts",
     "worker": "node --env-file-if-exists=.env --import tsx apps/worker/src/index.ts",
     "test": "node --import tsx --test tests/*.test.ts",
     "test:integration": "node --import tsx --test tests/integration/*.test.ts",

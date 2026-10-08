@@ -8,7 +8,7 @@ Base: `/api/v1/workspaces/{workspaceId}`. JSON only. Authenticate by HttpOnly se
 - Item PATCH, DELETE and restore require `version`. A stale version returns 409 without changing data. Read and reconcile before retrying.
 - 400 validation; 401 authentication; 403 workspace/scope/CSRF boundary; 404 unavailable resource; 409 conflict; 429 rate limit; 503 temporary service failure.
 - Dates are ISO 8601 with offset. Ranges are start-inclusive/end-exclusive. No hard-delete item endpoint exists.
-- Role viewer can read. Member can edit domain data. Admin/owner can manage models, tokens and add members. Only owner can grant admin or change roles. Owner cannot be demoted through the member API.
+- Role viewer can read. Member can edit domain data. Workspace admin/owner can manage tokens and add members. Only owner can grant admin or change roles. Owner cannot be demoted through the member API. System administration is a separate `isSystemAdmin` capability and never comes from a workspace role or API token.
 
 ## Resources
 
@@ -32,7 +32,7 @@ Base: `/api/v1/workspaces/{workspaceId}`. JSON only. Authenticate by HttpOnly se
 | GET | `/skills` | Versioned manifests, JSON schemas, permissions, triggers |
 | POST | `/skills/:id/run` | Run capability with declared input and required scopes |
 | GET | `/settings` | Safe model config metadata, own notification settings, channel availability |
-| POST | `/settings/ai` | Admin: provider, baseUrl, model, optional apiKey |
+| POST | `/settings/ai` | Retired: returns 403 because AI endpoints are managed globally |
 | POST | `/settings/notifications` | Own reminder channels, quiet hours, daily limit, morning schedule, pausedUntil |
 | GET | `/notifications` | Own latest 100 inbox signals |
 | POST | `/notifications/read` | `{id}` marks own notification read |
@@ -45,6 +45,8 @@ Base: `/api/v1/workspaces/{workspaceId}`. JSON only. Authenticate by HttpOnly se
 Workspace creation: `POST /api/v1/workspaces` with name and IANA timezone (user session required).
 Authentication: `/api/v1/auth/status`, `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/me`.
 Health: `/api/v1/health` verifies database connectivity. Worker heartbeat: Redis key `orbit:worker:heartbeat` with a 180-second TTL.
+
+System administrators additionally use `/api/v1/admin/overview` and `/api/v1/admin/ai-endpoints`. Endpoint creation takes `name`, `provider`, `baseUrl`, `model`, optional `apiKey`, and `active`; update and delete use `/ai-endpoints/:id`, while `POST /ai-endpoints/:id/test` performs a small connectivity request. Responses expose `hasKey` only. These routes require a system-admin user session and reject workspace tokens.
 
 ## Example: create and complete
 

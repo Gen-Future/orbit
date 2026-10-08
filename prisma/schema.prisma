@@ -10,12 +10,25 @@ model User {
   email String @unique
   name String
   passwordHash String
+  isSystemAdmin Boolean @default(false)
   createdAt DateTime @default(now())
   memberships Membership[]
   sessions Session[]
   preferences NotificationPreference[]
   subscriptions PushSubscription[]
   notifications Notification[]
+}
+model AIEndpoint {
+  id String @id @default(cuid())
+  name String @unique
+  provider String @default("openai")
+  baseUrl String
+  model String
+  encryptedKey String?
+  active Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([active])
 }
 model Session {
   id String @id @default(cuid())

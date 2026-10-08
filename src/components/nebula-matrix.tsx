@@ -621,14 +621,26 @@ export function NebulaMatrix<T extends NebulaItem>({
             <div className="nebula-orbit-ring ring-outer" aria-hidden="true" />
             <div className="nebula-orbit-ring ring-inner" aria-hidden="true" />
             <div className="nebula-axis-x" aria-hidden="true">
-              <span>不重要</span>
-              <span>
-                重要性 <ArrowUpRight size={12} />
+              <span className="nebula-axis-label axis-low">
+                <small>影响较低</small>
+                <strong>不重要</strong>
+              </span>
+              <span className="nebula-axis-label axis-high">
+                <small>价值升高</small>
+                <strong>重要</strong>
+                <ArrowUpRight size={14} />
               </span>
             </div>
             <div className="nebula-axis-y" aria-hidden="true">
-              <span>紧急 ↑</span>
-              <span>不紧急</span>
+              <span className="nebula-axis-label axis-high">
+                <small>时间收紧</small>
+                <strong>紧急</strong>
+                <ArrowUp size={14} />
+              </span>
+              <span className="nebula-axis-label axis-low">
+                <small>时间宽裕</small>
+                <strong>不紧急</strong>
+              </span>
             </div>
             <div
               ref={sunRef}

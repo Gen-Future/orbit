@@ -27,7 +27,7 @@ import {
   json,
   signals,
 } from '@/lib/items';
-import { capture, reportDraft } from '@/lib/ai';
+import { activeModelEndpoint, capture, probeModelEndpoint, reportDraft } from '@/lib/ai';
 import { skills, scopes, roles, draftSchema } from '../../../../../packages/core/src';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -67,7 +67,15 @@ async function handler(req: Request, context: Context) {
           where: { userId: user.id },
           include: { workspace: true },
         });
-        return ok({ user: { id: user.id, email: user.email, name: user.name }, memberships });
+        return ok({
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            isSystemAdmin: user.isSystemAdmin,
+          },
+          memberships,
+        });
       }
       if (method === 'POST' && path[1] === 'logout') {
         const token = cookieToken(req);
@@ -132,6 +140,176 @@ async function handler(req: Request, context: Context) {
         { user: { id: user.id, name: user.name, email: user.email } },
         { headers: { 'Set-Cookie': sessionCookie(token) } },
       );
+    }
+    if (path[0] === 'admin') {
+      const user = await getUser(req);
+      invariant(user, 401, '请先登录');
+      invariant(user.isSystemAdmin, 403, '需要系统管理员权限');
+      if (method !== 'GET') await rateLimit(`system-admin:${user.id}`, 60);
+
+      if (path[1] === 'overview' && method === 'GET') {
+        const now = new Date();
+        const since = new Date(now.getTime() - 7 * 864e5);
+        const [
+          users,
+          workspaces,
+          openItems,
+          completedItems,
+          overdueItems,
+          reports,
+          aiSucceeded,
+          aiFailed,
+          activeSessions,
+          recentUsers,
+          activityItems,
+          activeEndpoint,
+        ] = await Promise.all([
+          db.user.count(),
+          db.workspace.count(),
+          db.item.count({ where: { status: { not: 'done' }, deletedAt: null, archivedAt: null } }),
+          db.item.count({ where: { completedAt: { gte: since }, deletedAt: null } }),
+          db.item.count({
+            where: {
+              status: { not: 'done' },
+              dueAt: { lt: now },
+              deletedAt: null,
+              archivedAt: null,
+            },
+          }),
+          db.report.count({ where: { createdAt: { gte: since } } }),
+          db.aIJob.count({ where: { createdAt: { gte: since }, status: 'succeeded' } }),
+          db.aIJob.count({ where: { createdAt: { gte: since }, status: 'failed' } }),
+          db.session.findMany({
+            where: { expiresAt: { gt: now } },
+            distinct: ['userId'],
+            select: { userId: true },
+          }),
+          db.user.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            select: { id: true, name: true, email: true, createdAt: true, isSystemAdmin: true },
+          }),
+          db.item.findMany({
+            where: { OR: [{ createdAt: { gte: since } }, { completedAt: { gte: since } }] },
+            select: { createdAt: true, completedAt: true },
+          }),
+          db.aIEndpoint.findFirst({
+            where: { active: true },
+            select: { id: true, name: true, provider: true, model: true },
+          }),
+        ]);
+        const activity = Array.from({ length: 7 }, (_, index) => {
+          const date = new Date(now.getTime() - (6 - index) * 864e5).toISOString().slice(0, 10);
+          return {
+            date,
+            created: activityItems.filter(
+              (item) => item.createdAt.toISOString().slice(0, 10) === date,
+            ).length,
+            completed: activityItems.filter(
+              (item) => item.completedAt?.toISOString().slice(0, 10) === date,
+            ).length,
+          };
+        });
+        return ok({
+          totals: {
+            users,
+            workspaces,
+            openItems,
+            completedItems,
+            overdueItems,
+            reports,
+            aiSucceeded,
+            aiFailed,
+            activeUsers: activeSessions.length,
+          },
+          activity,
+          recentUsers,
+          activeEndpoint,
+        });
+      }
+
+      if (path[1] === 'ai-endpoints') {
+        const endpointId = path[2];
+        if (method === 'GET')
+          return ok(
+            await db.aIEndpoint
+              .findMany({
+                orderBy: [{ active: 'desc' }, { updatedAt: 'desc' }],
+                select: {
+                  id: true,
+                  name: true,
+                  provider: true,
+                  baseUrl: true,
+                  model: true,
+                  active: true,
+                  createdAt: true,
+                  updatedAt: true,
+                  encryptedKey: true,
+                },
+              })
+              .then((rows) =>
+                rows.map(({ encryptedKey, ...row }) => ({ ...row, hasKey: Boolean(encryptedKey) })),
+              ),
+          );
+        if (method === 'POST' && endpointId && path[3] === 'test') {
+          const endpoint = await db.aIEndpoint.findUnique({ where: { id: endpointId } });
+          invariant(endpoint, 404, 'AI 端点不存在');
+          return ok(await probeModelEndpoint(endpoint));
+        }
+        if (method === 'DELETE' && endpointId) {
+          invariant(
+            await db.aIEndpoint.findUnique({ where: { id: endpointId } }),
+            404,
+            'AI 端点不存在',
+          );
+          await db.aIEndpoint.delete({ where: { id: endpointId } });
+          return ok({ ok: true });
+        }
+        const createSchema = z.object({
+          name: z.string().trim().min(1).max(80),
+          provider: z.enum(['openai', 'ollama']),
+          baseUrl: z
+            .string()
+            .url()
+            .refine(
+              (value) => ['http:', 'https:'].includes(new URL(value).protocol),
+              '必须使用 HTTP(S)',
+            ),
+          model: z.string().trim().min(1).max(160),
+          apiKey: z.string().max(1000).optional(),
+          active: z.boolean().default(true),
+        });
+        const updateSchema = createSchema.partial().extend({ active: z.boolean().optional() });
+        if (method === 'POST' && !endpointId) {
+          const value = createSchema.parse(await body(req));
+          const { apiKey, ...data } = value;
+          const endpoint = await db.$transaction(async (tx) => {
+            if (data.active) await tx.aIEndpoint.updateMany({ data: { active: false } });
+            return tx.aIEndpoint.create({
+              data: { ...data, ...(apiKey ? { encryptedKey: encrypt(apiKey) } : {}) },
+            });
+          });
+          return ok({ id: endpoint.id }, 201);
+        }
+        if (method === 'PATCH' && endpointId) {
+          const value = updateSchema.parse(await body(req));
+          const { apiKey, ...data } = value;
+          const endpoint = await db.$transaction(async (tx) => {
+            invariant(
+              await tx.aIEndpoint.findUnique({ where: { id: endpointId } }),
+              404,
+              'AI 端点不存在',
+            );
+            if (data.active) await tx.aIEndpoint.updateMany({ data: { active: false } });
+            return tx.aIEndpoint.update({
+              where: { id: endpointId },
+              data: { ...data, ...(apiKey ? { encryptedKey: encrypt(apiKey) } : {}) },
+            });
+          });
+          return ok({ id: endpoint.id });
+        }
+      }
+      throw new HttpError(404, '系统管理接口不存在');
     }
     if (path[0] === 'workspaces' && path.length === 1 && method === 'POST') {
       const user = await getUser(req);
@@ -506,7 +684,7 @@ async function handler(req: Request, context: Context) {
     if (resource === 'settings') {
       if (method === 'GET') {
         const [ai, pref] = await Promise.all([
-          db.aIConfig.findUnique({ where: { workspaceId: wid } }),
+          activeModelEndpoint(),
           actor.userId
             ? db.notificationPreference.findUnique({
                 where: { workspaceId_userId: { workspaceId: wid, userId: actor.userId } },
@@ -525,41 +703,11 @@ async function handler(req: Request, context: Context) {
           preferences: pref,
           vapidPublicKey: process.env.VAPID_PUBLIC_KEY || null,
           smtpConfigured: Boolean(process.env.SMTP_HOST),
-          aiConfigured: Boolean(ai || (process.env.AI_BASE_URL && process.env.AI_MODEL)),
+          aiConfigured: Boolean(ai),
         });
       }
       if (method === 'POST' && id === 'ai') {
-        admin(actor);
-        const value = z
-          .object({
-            provider: z.enum(['openai', 'ollama']),
-            baseUrl: z
-              .string()
-              .url()
-              .refine((x) => ['http:', 'https:'].includes(new URL(x).protocol), '必须使用 HTTP(S)'),
-            model: z.string().min(1).max(120),
-            apiKey: z.string().max(1000).optional(),
-          })
-          .parse(await body(req));
-        const { apiKey, ...rest } = value;
-        const config = await db.aIConfig.upsert({
-          where: { workspaceId: wid },
-          create: {
-            ...rest,
-            workspaceId: wid,
-            ...(apiKey ? { encryptedKey: encrypt(apiKey) } : {}),
-          },
-          update: { ...rest, ...(apiKey ? { encryptedKey: encrypt(apiKey) } : {}) },
-        });
-        await db.itemEvent.create({
-          data: {
-            workspaceId: wid,
-            actorId: actor.id,
-            type: 'settings.ai.updated',
-            data: { provider: config.provider, model: config.model },
-          },
-        });
-        return ok({ saved: true });
+        throw new HttpError(403, 'AI 端点由系统管理员统一管理');
       }
       if (method === 'POST' && id === 'notifications') {
         invariant(actor.userId, 403, '需要用户登录');

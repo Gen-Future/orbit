@@ -9,6 +9,7 @@
 - 事项、项目、一级子事项、四象限、状态、发生/截止/完成时间、提醒、归档、可撤销删除和恢复。
 - 追加式操作历史、服务端搜索和分页、工作空间 JSON 导出。
 - AI 自然语言草稿、象限建议、任务拆解、周报辅助概括；模型不可用时明确显示规则降级。
+- 系统管理员控制台统一管理 AI 接入端点，提供用户、空间、事项、七日活跃度和 AI 成功率概览。
 - 晨间摘要、到期/遗忘提示、应用内通知、邮件、Web Push、免打扰、暂停、上限和稍后提醒。
 - 有来源的可编辑 Markdown 周报、复制和下载。
 - 版本化 API、工作空间访问令牌、幂等写入、乐观版本冲突和 Skill 接入说明。
@@ -63,7 +64,7 @@ SEED_PASSWORD='your-local-demo-password' npm run db:seed
 2. 从 `.env.example` 创建 `.env`，设置 `ORBIT_DOMAIN`、随机十六进制 `POSTGRES_PASSWORD`、64 位十六进制 `ENCRYPTION_KEY`；妥善备份该加密密钥。
 3. 运行 `docker compose up -d --build`。迁移服务先完成，Web 与 Worker 随后启动，Caddy 自动申请 HTTPS。
 4. 创建你的正式账号，检查 `/api/v1/health`，运行 `docker compose ps` 确认 Web 与 Worker 健康。
-5. 在设置中配置 AI 和通知渠道。不要把本地 `.env`、`.data` 或演示数据库复制到生产。
+5. 使用 `npm run admin:provision` 创建系统管理员并写入首个全局 AI 端点；通知渠道仍在空间设置中管理。不要把本地 `.env`、`.data` 或演示数据库复制到生产。
 
 数据库和 Redis 不暴露公网端口。`APP_URL` 由生产 Compose 设置为 HTTPS 域名，Cookie 自动启用 Secure。若使用其他反向代理，确保 `APP_URL` 与浏览器实际访问的来源一致，否则 CSRF 校验会拒绝写入。
 
@@ -73,9 +74,20 @@ SEED_PASSWORD='your-local-demo-password' npm run db:seed
 
 ### AI
 
-设置页面可选 OpenAI-compatible（例如 `http://model:11434/v1`）或 Ollama 原生（`http://model:11434`），输入模型名及可选 Key。Key 用 ENCRYPTION_KEY 进行 AES-GCM 加密，接口不回传明文。
+系统管理员登录后会自动看到「系统控制台」，可添加、测试、切换和移除 OpenAI-compatible 或 Ollama 原生端点。当前激活端点统一服务所有工作空间；普通空间成员只能看到服务状态，不能读取或修改端点。Key 用 ENCRYPTION_KEY 进行 AES-GCM 加密，接口只返回 `hasKey` 状态，不回传密文或明文。
 
-也可设置服务器默认 `AI_PROVIDER`、`AI_BASE_URL`、`AI_MODEL`、`AI_API_KEY`。单次模型请求超时 15 秒。自然语言相对日期按工作空间时区处理；规则降级支持“今天/明天/后天/周几”和数字/中文小时，不把它伪装为完整语言模型理解。请在草稿里核对日期。
+首次部署可将 `ORBIT_ADMIN_EMAIL`、`ORBIT_ADMIN_PASSWORD`、`AI_ENDPOINT_NAME`、`AI_PROVIDER`、`AI_BASE_URL`、`AI_MODEL` 和 `AI_API_KEY` 仅传给 `npm run admin:provision`。脚本创建或提升系统管理员并激活该端点；管理员密码无需保存在运行环境。没有数据库端点时，服务器 AI 环境变量继续作为兼容回退。单次模型请求超时 15 秒。自然语言相对日期按工作空间时区处理；规则降级支持“今天/明天/后天/周几”和数字/中文小时，不把它伪装为完整语言模型理解。请在草稿里核对日期。
+
+```sh
+ORBIT_ADMIN_EMAIL=admin@example.com \
+ORBIT_ADMIN_PASSWORD='replace-with-a-strong-password' \
+AI_ENDPOINT_NAME='主端点' \
+AI_PROVIDER=openai \
+AI_BASE_URL='https://api.example.com/v1' \
+AI_MODEL='provider/model-id' \
+AI_API_KEY='provider-key' \
+npm run admin:provision
+```
 
 每次 AI 执行记录模型、提示词版本、输入哈希、来源 ID、结果与状态。发送给模型的工作内容由具体操作限定；不要接入未经你批准的数据接收方。
 

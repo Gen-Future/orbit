@@ -38,6 +38,12 @@ import {
   CheckCheck,
   Target,
   ExternalLink,
+  ShieldCheck,
+  Server,
+  Activity,
+  Trash2,
+  Play,
+  Save,
 } from 'lucide-react';
 import {
   quadrantNames,
@@ -72,6 +78,7 @@ type Item = {
 };
 type Workspace = { id: string; name: string; timezone: string };
 type Membership = { role: string; workspace: Workspace };
+type User = { id: string; name: string; email: string; isSystemAdmin: boolean };
 type Event = {
   id: string;
   type: string;
@@ -108,7 +115,47 @@ type Config = {
   smtpConfigured: boolean;
   aiConfigured: boolean;
 };
-type Tab = 'today' | 'matrix' | 'inbox' | 'projects' | 'timeline' | 'reports' | 'settings';
+type AIEndpointView = {
+  id: string;
+  name: string;
+  provider: string;
+  baseUrl: string;
+  model: string;
+  active: boolean;
+  hasKey: boolean;
+  updatedAt: string;
+};
+type AdminOverview = {
+  totals: {
+    users: number;
+    workspaces: number;
+    openItems: number;
+    completedItems: number;
+    overdueItems: number;
+    reports: number;
+    aiSucceeded: number;
+    aiFailed: number;
+    activeUsers: number;
+  };
+  activity: { date: string; created: number; completed: number }[];
+  recentUsers: {
+    id: string;
+    name: string;
+    email: string;
+    createdAt: string;
+    isSystemAdmin: boolean;
+  }[];
+  activeEndpoint: { id: string; name: string; provider: string; model: string } | null;
+};
+type Tab =
+  | 'today'
+  | 'matrix'
+  | 'inbox'
+  | 'projects'
+  | 'timeline'
+  | 'reports'
+  | 'settings'
+  | 'admin';
 const navigation = [
   { id: 'today', label: '今日轨道', icon: Sun },
   { id: 'matrix', label: '四象限', icon: Grid2X2 },
@@ -202,7 +249,7 @@ function fromInput(value: string, zone: string) {
   return value ? zonedInstant(value.slice(0, 10), value.slice(11, 16), zone) : null;
 }
 export default function Orbit() {
-  const [user, setUser] = useState<{ id: string; name: string; email: string } | null>(null),
+  const [user, setUser] = useState<User | null>(null),
     [memberships, setMemberships] = useState<Membership[]>([]),
     [wid, setWid] = useState(''),
     [ready, setReady] = useState(false),
@@ -256,7 +303,7 @@ export default function Orbit() {
   const notify = (text: string) => setToast(text);
   const boot = useCallback(async () => {
     try {
-      const me = await api<{ user: typeof user; memberships: Membership[] }>('auth/me');
+      const me = await api<{ user: User; memberships: Membership[] }>('auth/me');
       setUser(me.user);
       setMemberships(me.memberships);
       const params = new URLSearchParams(window.location.search);
@@ -687,7 +734,7 @@ export default function Orbit() {
     );
   return (
     <div
-      className={`app ${writable ? 'has-capture' : ''} ${reduced ? 'reduced-motion' : ''} ${tab === 'matrix' ? 'matrix-page' : ''} ${matrixImmersive && tab === 'matrix' ? 'matrix-immersive' : ''}`}
+      className={`app ${writable && !['matrix', 'admin'].includes(tab) ? 'has-capture' : ''} ${reduced ? 'reduced-motion' : ''} ${tab === 'matrix' ? 'matrix-page' : ''} ${matrixImmersive && tab === 'matrix' ? 'matrix-immersive' : ''}`}
     >
       <a href="#main" className="skip-link">
         跳转到主内容
@@ -787,6 +834,17 @@ export default function Orbit() {
             <span className="mono">01</span>
           </div>
           <button
+            hidden={!user.isSystemAdmin}
+            className={`nav-item admin-nav-item ${tab === 'admin' ? 'active' : ''}`}
+            onClick={() => {
+              setTab('admin');
+              setMobileNav(false);
+            }}
+          >
+            <ShieldCheck size={18} />
+            系统控制台
+          </button>
+          <button
             className={`nav-item ${tab === 'settings' ? 'active' : ''}`}
             onClick={() => {
               setTab('settings');
@@ -836,7 +894,11 @@ export default function Orbit() {
           <div className="breadcrumb">
             <span>我的空间</span>
             <ChevronRight size={13} />
-            <strong>{navigation.find((n) => n.id === tab)?.label || '空间设置'}</strong>
+            <strong>
+              {tab === 'admin'
+                ? '系统控制台'
+                : navigation.find((n) => n.id === tab)?.label || '空间设置'}
+            </strong>
           </div>
           <div className="header-right">
             <span className="header-date">
@@ -1149,6 +1211,7 @@ export default function Orbit() {
                             timeline: '每一步，都算数。',
                             reports: '这一周，值得被看见。',
                             settings: '你的 Orbit，你来定义。',
+                            admin: '让整个 Orbit，稳定运行。',
                           } as Record<string, string>
                         )[tab]
                       }
@@ -1163,12 +1226,13 @@ export default function Orbit() {
                             timeline: '事项会完成，行动的记录会留下。',
                             reports: '从真实工作记录出发，每一项成果都有来源。',
                             settings: '模型、成员、提醒和开放接口，都在这里。',
+                            admin: '统一管理 AI 接入，掌握系统运行与使用概况。',
                           } as Record<string, string>
                         )[tab]
                       }
                     </p>
                   </div>
-                  {!['settings', 'reports', 'timeline'].includes(tab) && (
+                  {!['settings', 'reports', 'timeline', 'admin'].includes(tab) && (
                     <button
                       className="primary-button"
                       disabled={!writable}
@@ -1474,6 +1538,9 @@ export default function Orbit() {
                   }}
                 />
               )}
+              {tab === 'admin' && user.isSystemAdmin && (
+                <AdminPanel disabled={Boolean(busy)} run={run} notify={notify} />
+              )}
             </>
           )}
           {tab !== 'matrix' && (
@@ -1488,7 +1555,7 @@ export default function Orbit() {
           )}
         </main>
       </div>
-      {writable && tab !== 'matrix' && (
+      {writable && tab !== 'matrix' && tab !== 'admin' && (
         <div className="capture-dock">
           <button
             className={`floating-capture ${tab === 'today' ? 'mobile-capture' : ''}`}
@@ -2437,6 +2504,389 @@ function download(name: string, content: string, type: string) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
+
+const emptyEndpoint = {
+  name: '',
+  provider: 'openai',
+  baseUrl: 'https://api.siliconflow.cn/v1',
+  model: 'Qwen/Qwen3-8B',
+  apiKey: '',
+  active: true,
+};
+
+function AdminPanel({
+  disabled,
+  run,
+  notify,
+}: {
+  disabled: boolean;
+  run: (label: string, work: () => Promise<void>) => Promise<void>;
+  notify: (text: string) => void;
+}) {
+  const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [endpoints, setEndpoints] = useState<AIEndpointView[]>([]);
+  const [editingId, setEditingId] = useState('');
+  const [form, setForm] = useState(emptyEndpoint);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [nextOverview, nextEndpoints] = await Promise.all([
+        api<AdminOverview>('admin/overview'),
+        api<AIEndpointView[]>('admin/ai-endpoints'),
+      ]);
+      setOverview(nextOverview);
+      setEndpoints(nextEndpoints);
+      setLoadError('');
+    } catch (error) {
+      setLoadError((error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    if (!editingId && endpoints.length) {
+      const endpoint = endpoints.find((item) => item.active) || endpoints[0];
+      setEditingId(endpoint.id);
+      setForm({
+        name: endpoint.name,
+        provider: endpoint.provider,
+        baseUrl: endpoint.baseUrl,
+        model: endpoint.model,
+        apiKey: '',
+        active: endpoint.active,
+      });
+    }
+  }, [editingId, endpoints]);
+
+  const selectEndpoint = (endpoint: AIEndpointView) => {
+    setEditingId(endpoint.id);
+    setConfirmDelete('');
+    setForm({
+      name: endpoint.name,
+      provider: endpoint.provider,
+      baseUrl: endpoint.baseUrl,
+      model: endpoint.model,
+      apiKey: '',
+      active: endpoint.active,
+    });
+  };
+  const startNew = () => {
+    setEditingId('');
+    setConfirmDelete('');
+    setForm(emptyEndpoint);
+  };
+  const maxActivity = Math.max(
+    1,
+    ...(overview?.activity.map((day) => Math.max(day.created, day.completed)) || [1]),
+  );
+  const aiTotal = (overview?.totals.aiSucceeded || 0) + (overview?.totals.aiFailed || 0);
+  const aiRate = aiTotal ? Math.round(((overview?.totals.aiSucceeded || 0) / aiTotal) * 100) : 100;
+
+  if (loading && !overview) return <div className="admin-loading">正在读取系统轨道…</div>;
+  return (
+    <div className="admin-console">
+      {loadError && <div className="error-banner">{loadError}</div>}
+      {overview && (
+        <>
+          <section className="admin-metric-strip" aria-label="系统概览">
+            <div>
+              <span>注册用户</span>
+              <strong>{overview.totals.users}</strong>
+              <small>{overview.totals.activeUsers} 个有效会话</small>
+            </div>
+            <div>
+              <span>工作空间</span>
+              <strong>{overview.totals.workspaces}</strong>
+              <small>数据按空间隔离</small>
+            </div>
+            <div>
+              <span>轨道中</span>
+              <strong>{overview.totals.openItems}</strong>
+              <small>{overview.totals.overdueItems} 件已逾期</small>
+            </div>
+            <div>
+              <span>近 7 天完成</span>
+              <strong>{overview.totals.completedItems}</strong>
+              <small>{overview.totals.reports} 份周报</small>
+            </div>
+            <div className="admin-ai-metric">
+              <span>AI 成功率</span>
+              <strong>{aiRate}%</strong>
+              <small>{overview.activeEndpoint?.name || '尚无激活端点'}</small>
+            </div>
+          </section>
+
+          <section className="admin-pulse">
+            <div className="admin-section-heading">
+              <div>
+                <h2>
+                  <Activity size={19} /> 七日行动脉冲
+                </h2>
+                <p>记录与完成的真实变化</p>
+              </div>
+              <button className="icon-button" onClick={load} aria-label="刷新系统数据">
+                <RefreshCw size={16} className={loading ? 'spin' : ''} />
+              </button>
+            </div>
+            <div className="admin-activity-chart" aria-label="最近七天事项创建与完成数量">
+              {overview.activity.map((day) => (
+                <div className="admin-day" key={day.date}>
+                  <div className="admin-bars">
+                    <span
+                      className="created"
+                      style={{ height: `${Math.max(4, (day.created / maxActivity) * 100)}%` }}
+                      title={`创建 ${day.created}`}
+                    />
+                    <span
+                      className="completed"
+                      style={{ height: `${Math.max(4, (day.completed / maxActivity) * 100)}%` }}
+                      title={`完成 ${day.completed}`}
+                    />
+                  </div>
+                  <strong>{day.date.slice(5).replace('-', '/')}</strong>
+                  <small>
+                    {day.created} / {day.completed}
+                  </small>
+                </div>
+              ))}
+            </div>
+            <div className="admin-chart-legend">
+              <span>
+                <i className="created" />
+                新记录
+              </span>
+              <span>
+                <i className="completed" />
+                已完成
+              </span>
+            </div>
+          </section>
+        </>
+      )}
+
+      <section className="admin-endpoints">
+        <div className="admin-section-heading">
+          <div>
+            <h2>
+              <Server size={19} /> AI 接入端点
+            </h2>
+            <p>当前激活端点服务所有工作空间，密钥只以密文保存。</p>
+          </div>
+          <button className="secondary-button" onClick={startNew}>
+            <Plus size={15} /> 新增端点
+          </button>
+        </div>
+        <div className="endpoint-workbench">
+          <div className="endpoint-list" aria-label="AI 端点列表">
+            {endpoints.map((endpoint) => (
+              <button
+                key={endpoint.id}
+                className={editingId === endpoint.id ? 'is-selected' : ''}
+                onClick={() => selectEndpoint(endpoint)}
+              >
+                <span className={endpoint.active ? 'online-dot' : 'idle-dot'} />
+                <span>
+                  <strong>{endpoint.name}</strong>
+                  <small>{endpoint.model}</small>
+                </span>
+                {endpoint.active && <em>当前</em>}
+              </button>
+            ))}
+            {!endpoints.length && <p>还没有端点。创建后，Orbit 才会调用 AI 模型。</p>}
+          </div>
+          <form
+            className="endpoint-editor"
+            onSubmit={(event) => {
+              event.preventDefault();
+              run('admin-endpoint-save', async () => {
+                const payload = {
+                  name: form.name,
+                  provider: form.provider,
+                  baseUrl: form.baseUrl,
+                  model: form.model,
+                  active: form.active,
+                  ...(form.apiKey ? { apiKey: form.apiKey } : {}),
+                };
+                await api(
+                  editingId ? `admin/ai-endpoints/${editingId}` : 'admin/ai-endpoints',
+                  editingId ? 'PATCH' : 'POST',
+                  payload,
+                );
+                setForm((current) => ({ ...current, apiKey: '' }));
+                notify(editingId ? 'AI 端点已更新。' : 'AI 端点已创建。');
+                await load();
+              });
+            }}
+          >
+            <div className="endpoint-editor-title">
+              <div>
+                <strong>{editingId ? '编辑端点' : '连接新端点'}</strong>
+                <span>{editingId ? '修改会立即影响后续 AI 调用' : '创建后可随时切换'}</span>
+              </div>
+              {editingId && endpoints.find((item) => item.id === editingId)?.hasKey && (
+                <span className="key-status">
+                  <KeyRound size={12} /> 密钥已保存
+                </span>
+              )}
+            </div>
+            <div className="form-grid">
+              <label>
+                端点名称
+                <input
+                  required
+                  value={form.name}
+                  onChange={(event) => setForm({ ...form, name: event.target.value })}
+                  placeholder="如：硅基流动主端点"
+                />
+              </label>
+              <label>
+                接口类型
+                <select
+                  value={form.provider}
+                  onChange={(event) => setForm({ ...form, provider: event.target.value })}
+                >
+                  <option value="openai">OpenAI-compatible</option>
+                  <option value="ollama">Ollama 原生</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              服务地址
+              <input
+                required
+                type="url"
+                value={form.baseUrl}
+                onChange={(event) => setForm({ ...form, baseUrl: event.target.value })}
+                placeholder="https://api.example.com/v1"
+              />
+            </label>
+            <div className="form-grid">
+              <label>
+                模型名称
+                <input
+                  required
+                  value={form.model}
+                  onChange={(event) => setForm({ ...form, model: event.target.value })}
+                  placeholder="服务商中的完整模型 ID"
+                />
+              </label>
+              <label>
+                API Key
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={form.apiKey}
+                  onChange={(event) => setForm({ ...form, apiKey: event.target.value })}
+                  placeholder={editingId ? '留空则保留现有密钥' : '按服务商要求填写'}
+                />
+              </label>
+            </div>
+            <label className="toggle-row endpoint-active-toggle">
+              <span>
+                设为当前端点<small>开启后，其他端点自动转为待命</small>
+              </span>
+              <input
+                type="checkbox"
+                checked={form.active}
+                onChange={(event) => setForm({ ...form, active: event.target.checked })}
+              />
+            </label>
+            <div className="endpoint-actions">
+              <button className="primary-button" disabled={disabled}>
+                <Save size={15} /> {editingId ? '保存端点' : '创建端点'}
+              </button>
+              {editingId && (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={disabled}
+                  onClick={() =>
+                    run('admin-endpoint-test', async () => {
+                      const result = await api<{ latencyMs: number }>(
+                        `admin/ai-endpoints/${editingId}/test`,
+                        'POST',
+                        {},
+                      );
+                      notify(`连接成功，响应约 ${result.latencyMs} ms。`);
+                    })
+                  }
+                >
+                  <Play size={14} /> 测试连接
+                </button>
+              )}
+              {editingId && (
+                <button
+                  type="button"
+                  className="text-button endpoint-delete"
+                  disabled={disabled}
+                  onClick={() => {
+                    if (confirmDelete !== editingId) {
+                      setConfirmDelete(editingId);
+                      return;
+                    }
+                    run('admin-endpoint-delete', async () => {
+                      await api(`admin/ai-endpoints/${editingId}`, 'DELETE');
+                      notify('AI 端点已移除。');
+                      startNew();
+                      await load();
+                    });
+                  }}
+                >
+                  <Trash2 size={14} />
+                  {confirmDelete === editingId ? '确认移除' : '移除端点'}
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
+      </section>
+
+      {overview && (
+        <section className="admin-users">
+          <div className="admin-section-heading">
+            <div>
+              <h2>
+                <Users size={19} /> 最近加入
+              </h2>
+              <p>最近创建的五个账号</p>
+            </div>
+          </div>
+          <div className="admin-user-list">
+            {overview.recentUsers.map((recentUser) => (
+              <div key={recentUser.id}>
+                <span className="avatar small">{recentUser.name.slice(0, 1)}</span>
+                <span>
+                  <strong>{recentUser.name}</strong>
+                  <small>{recentUser.email}</small>
+                </span>
+                {recentUser.isSystemAdmin && (
+                  <em>
+                    <ShieldCheck size={12} /> 系统管理员
+                  </em>
+                )}
+                <time>
+                  {new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric' }).format(
+                    new Date(recentUser.createdAt),
+                  )}
+                </time>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
 function SettingsPanel({
   config,
   prefix,
@@ -2462,11 +2912,7 @@ function SettingsPanel({
   notify: (text: string) => void;
   newWorkspace: (name: string) => Promise<void>;
 }) {
-  const [provider, setProvider] = useState(config?.ai?.provider || 'openai'),
-    [baseUrl, setBaseUrl] = useState(config?.ai?.baseUrl || ''),
-    [model, setModel] = useState(config?.ai?.model || ''),
-    [apiKey, setApiKey] = useState(''),
-    [prefs, setPrefs] = useState<Preferences>(config?.preferences || defaultPrefs),
+  const [prefs, setPrefs] = useState<Preferences>(config?.preferences || defaultPrefs),
     [spaceName, setSpaceName] = useState('');
   const [members, setMembers] = useState<
       { id: string; role: string; user: { name: string; email: string } }[]
@@ -2482,12 +2928,7 @@ function SettingsPanel({
     [memberRole, setMemberRole] = useState('member');
   const configVersion = JSON.stringify(config);
   useEffect(() => {
-    if (config) {
-      setPrefs(config.preferences || defaultPrefs);
-      setProvider(config.ai?.provider || 'openai');
-      setBaseUrl(config.ai?.baseUrl || '');
-      setModel(config.ai?.model || '');
-    }
+    if (config) setPrefs(config.preferences || defaultPrefs);
   }, [configVersion]);
   const load = useCallback(async () => {
     setMembers(await api(`${prefix}/members`));
@@ -2659,75 +3100,22 @@ function SettingsPanel({
       <section className="settings-section">
         <h2>
           <Sparkles size={20} />
-          AI，由你选择
+          Orbit AI
         </h2>
-        <p>连接自托管模型或兼容接口，密钥只留在服务器。</p>
-        {isAdmin ? (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              run('ai-settings', async () => {
-                await api(`${prefix}/settings/ai`, 'POST', {
-                  provider,
-                  baseUrl,
-                  model,
-                  ...(apiKey ? { apiKey } : {}),
-                });
-                setApiKey('');
-                notify('模型配置已保存。');
-                await refresh();
-              });
-            }}
-          >
-            <label>
-              接口类型
-              <select value={provider} onChange={(e) => setProvider(e.target.value)}>
-                <option value="openai">OpenAI-compatible</option>
-                <option value="ollama">Ollama 原生</option>
-              </select>
-            </label>
-            <label>
-              服务地址
-              <input
-                required
-                type="url"
-                placeholder={
-                  provider === 'openai' ? 'http://localhost:11434/v1' : 'http://localhost:11434'
-                }
-                value={baseUrl}
-                onChange={(e) => setBaseUrl(e.target.value)}
-              />
-            </label>
-            <label>
-              模型名称
-              <input
-                required
-                placeholder="如 qwen3:8b"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-              />
-            </label>
-            <label>
-              API Key
-              <input
-                type="password"
-                autoComplete="new-password"
-                placeholder={
-                  config?.ai?.hasKey ? '已保存 · 留空则不修改' : '可选，按模型服务要求填写'
-                }
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-              />
-            </label>
-            <button className="secondary-button" disabled={disabled}>
-              保存模型配置
-            </button>
-          </form>
-        ) : (
-          <p>由空间管理员配置模型。</p>
-        )}
+        <p>模型能力由系统统一接入，工作空间无需保存或共享密钥。</p>
+        <div className={`ai-service-status ${config?.aiConfigured ? 'is-online' : ''}`}>
+          <span className={config?.aiConfigured ? 'online-dot' : 'idle-dot'} />
+          <div>
+            <strong>{config?.aiConfigured ? 'AI 服务在线' : 'AI 服务尚未接入'}</strong>
+            <small>
+              {config?.ai
+                ? `${config.ai.provider === 'ollama' ? 'Ollama' : 'OpenAI-compatible'} · ${config.ai.model}`
+                : '自然语言输入会自动使用规则模式'}
+            </small>
+          </div>
+        </div>
         <div className="setting-note">
-          只发送当前操作所需的事项与项目名；AI 执行记录保留输入哈希、模型版本和结构化结果。
+          Orbit 只发送当前操作所需的事项与项目名；AI 执行记录保留输入哈希、模型版本和结构化结果。
         </div>
       </section>
       <section className="settings-section">

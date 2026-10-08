@@ -4,6 +4,69 @@ import { json } from './items';
 import { draftSchema, simpleDraft, type CaptureDraft } from '../../packages/core/src';
 import { invariant } from './errors';
 import { z } from 'zod';
+
+type ModelEndpoint = {
+  provider: string;
+  baseUrl: string;
+  model: string;
+  encryptedKey?: string | null;
+};
+
+export async function activeModelEndpoint(): Promise<ModelEndpoint | null> {
+  const endpoint = await db.aIEndpoint.findFirst({
+    where: { active: true },
+    orderBy: { updatedAt: 'desc' },
+  });
+  if (endpoint) return endpoint;
+  if (!process.env.AI_BASE_URL || !process.env.AI_MODEL) return null;
+  return {
+    provider: process.env.AI_PROVIDER || 'openai',
+    baseUrl: process.env.AI_BASE_URL,
+    model: process.env.AI_MODEL,
+  };
+}
+
+function modelRequest(endpoint: ModelEndpoint, system: string, input: string, json = true) {
+  const native = endpoint.provider === 'ollama';
+  return {
+    native,
+    url: endpoint.baseUrl.replace(/\/$/, '') + (native ? '/api/chat' : '/chat/completions'),
+    body: {
+      model: endpoint.model,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: input },
+      ],
+      stream: false,
+      ...(native
+        ? json
+          ? { format: 'json' }
+          : {}
+        : json
+          ? { response_format: { type: 'json_object' }, max_tokens: 2000 }
+          : { max_tokens: 2 }),
+    },
+  };
+}
+
+export async function probeModelEndpoint(endpoint: ModelEndpoint) {
+  const key = endpoint.encryptedKey ? decrypt(endpoint.encryptedKey) : process.env.AI_API_KEY;
+  const request = modelRequest(endpoint, 'Reply briefly.', 'OK', false);
+  const startedAt = Date.now();
+  const response = await fetch(request.url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(key ? { Authorization: `Bearer ${key}` } : {}),
+    },
+    body: JSON.stringify(request.body),
+    signal: AbortSignal.timeout(12000),
+  });
+  invariant(response.ok, 502, `模型服务返回 ${response.status}`);
+  await response.arrayBuffer();
+  return { ok: true, latencyMs: Date.now() - startedAt, model: endpoint.model };
+}
+
 export async function callModel(
   actor: Actor,
   skillId: string,
@@ -11,10 +74,8 @@ export async function callModel(
   sourceIds: string[],
   system: string,
 ) {
-  const config = await db.aIConfig.findUnique({ where: { workspaceId: actor.workspaceId } });
-  const base = config?.baseUrl || process.env.AI_BASE_URL;
-  const model = config?.model || process.env.AI_MODEL;
-  const provider = config?.provider || process.env.AI_PROVIDER || 'openai';
+  const endpoint = await activeModelEndpoint();
+  const model = endpoint?.model;
   const job = await db.aIJob.create({
     data: {
       workspaceId: actor.workspaceId,
@@ -27,32 +88,21 @@ export async function callModel(
     },
   });
   try {
-    invariant(base && model, 503, '尚未配置 AI 模型');
-    const key = config?.encryptedKey ? decrypt(config.encryptedKey) : process.env.AI_API_KEY;
-    const native = provider === 'ollama';
-    const url = base.replace(/\/$/, '') + (native ? '/api/chat' : '/chat/completions');
-    const response = await fetch(url, {
+    invariant(endpoint && model, 503, '尚未配置 AI 模型');
+    const key = endpoint.encryptedKey ? decrypt(endpoint.encryptedKey) : process.env.AI_API_KEY;
+    const request = modelRequest(endpoint, system, input);
+    const response = await fetch(request.url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(key ? { Authorization: `Bearer ${key}` } : {}),
       },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: input },
-        ],
-        stream: false,
-        ...(native
-          ? { format: 'json' }
-          : { response_format: { type: 'json_object' }, max_tokens: 2000 }),
-      }),
+      body: JSON.stringify(request.body),
       signal: AbortSignal.timeout(15000),
     });
     invariant(response.ok, 502, `模型服务返回 ${response.status}`);
     const body = await response.json();
-    const content = native ? body.message?.content : body.choices?.[0]?.message?.content;
+    const content = request.native ? body.message?.content : body.choices?.[0]?.message?.content;
     invariant(typeof content === 'string' && content.length < 50000, 502, '模型返回格式不正确');
     const result = JSON.parse(content.replace(/^```(?:json)?\s*|\s*```$/g, ''));
     return { jobId: job.id, result };
