@@ -863,6 +863,42 @@
   animation: stellar-float 7s ease-in-out infinite;
   animation-delay: var(--star-delay);
 }
+.nebula-star-energy,
+.nebula-star-orbit,
+.nebula-star-shadow,
+.nebula-star-fracture {
+  position: absolute;
+  pointer-events: none;
+}
+.nebula-star-energy {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--star-color);
+  border-radius: 50%;
+  opacity: 0;
+}
+.nebula-star-orbit {
+  width: 43px;
+  height: 25px;
+  display: none;
+  border: 1px solid color-mix(in srgb, var(--star-color) 64%, transparent);
+  border-radius: 50%;
+  transform: rotate(-23deg);
+}
+.nebula-star-satellite {
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #f8fbff;
+  box-shadow: 0 0 8px var(--star-color);
+}
+.nebula-star-shadow,
+.nebula-star-fracture {
+  display: none;
+}
 .nebula-star-core {
   width: var(--star-size, 22px);
   height: var(--star-size, 22px);
@@ -874,6 +910,10 @@
     color-mix(in srgb, var(--star-color) 35%, #060b1b) 80%
   );
   box-shadow: 0 0 19px color-mix(in srgb, var(--star-color) 37%, transparent);
+  transition:
+    background 0.5s var(--ease),
+    box-shadow 0.5s var(--ease),
+    opacity 0.5s var(--ease);
 }
 .nebula-star-halo {
   position: absolute;
@@ -882,6 +922,85 @@
   border: 1px solid color-mix(in srgb, var(--star-color) 45%, transparent);
   border-radius: 50%;
   transform: rotate(-27deg);
+}
+.is-status-open .nebula-star-core {
+  animation: stellar-open-breathe 5.8s ease-in-out infinite;
+  animation-delay: var(--star-delay);
+}
+.is-status-open .nebula-star-halo {
+  opacity: 0.62;
+}
+.is-status-doing .nebula-star-core {
+  box-shadow:
+    0 0 14px color-mix(in srgb, var(--star-color) 65%, transparent),
+    0 0 28px color-mix(in srgb, var(--star-color) 28%, transparent);
+}
+.nebula-anchor.is-status-doing .nebula-star,
+.nebula-anchor.is-status-blocked .nebula-star {
+  animation: none;
+}
+.is-status-doing .nebula-star-energy {
+  opacity: 1;
+  animation: stellar-energy-wave 2.4s ease-out infinite;
+  animation-delay: var(--star-delay);
+}
+.is-status-doing .nebula-star-orbit {
+  display: block;
+  animation: stellar-work-orbit 3.2s linear infinite;
+  animation-delay: var(--star-delay);
+}
+.is-status-blocked .nebula-star-core {
+  filter: saturate(0.68) brightness(0.78);
+}
+.is-status-blocked .nebula-star-halo {
+  width: 43px;
+  height: 21px;
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--star-color) 72%, #8b91a1);
+  animation: stellar-blocked-ring 7s linear infinite reverse;
+  animation-delay: var(--star-delay);
+}
+.is-status-blocked .nebula-star-shadow {
+  display: block;
+  z-index: 2;
+  width: var(--star-size, 22px);
+  height: var(--star-size, 22px);
+  border-radius: 50%;
+  background: #07101bd9;
+  transform: translateX(42%);
+  animation: stellar-eclipse 4.8s ease-in-out infinite;
+  animation-delay: var(--star-delay);
+}
+.is-status-blocked .nebula-star-fracture {
+  display: block;
+  z-index: 3;
+  width: 11px;
+  height: 16px;
+  border-left: 1px solid #d9e3ef;
+  border-bottom: 1px solid #d9e3ef;
+  opacity: 0.72;
+  transform: rotate(-24deg) skewY(-22deg);
+}
+.is-status-done .nebula-star {
+  animation: none;
+}
+.is-status-done .nebula-star-core {
+  width: calc(var(--star-size, 22px) * 0.78);
+  height: calc(var(--star-size, 22px) * 0.78);
+  background: radial-gradient(circle at 35% 30%, #fff 0, #fff1bd 38%, #ad8241 100%);
+  box-shadow: 0 0 15px #ffd88b7a;
+}
+.is-status-done .nebula-star-energy {
+  opacity: 0.5;
+  border-color: #ffd88b;
+  animation: stellar-afterglow 6.4s ease-out infinite;
+  animation-delay: var(--star-delay);
+}
+.is-status-done .nebula-star-halo {
+  width: 32px;
+  height: 13px;
+  border-color: #ffd88b80;
+  opacity: 0.65;
 }
 .nebula-item.is-hot .nebula-star-halo {
   width: 48px;
@@ -914,18 +1033,24 @@
   color: var(--star-color);
 }
 .nebula-item.is-done {
-  opacity: 0.7;
+  opacity: 0.78;
 }
 .nebula-item.is-done .nebula-star {
   animation: none;
 }
 .nebula-done-mark {
   position: absolute;
-  color: #fff;
+  z-index: 4;
+  color: #322714;
   font-size: 12px;
 }
-.nebula-item.is-dragging .nebula-star {
-  animation-play-state: paused;
+.nebula-anchor:hover .nebula-star,
+.nebula-anchor:hover .nebula-star *,
+.nebula-anchor:focus-visible .nebula-star,
+.nebula-anchor:focus-visible .nebula-star *,
+.nebula-anchor.is-dragging .nebula-star,
+.nebula-anchor.is-dragging .nebula-star * {
+  animation-play-state: paused !important;
 }
 .nebula-item.just-landed .nebula-star-halo {
   animation: stellar-land 0.8s var(--ease) both;
@@ -1043,6 +1168,81 @@
   line-height: 1.8;
   box-shadow: 0 12px 45px #0007;
 }
+.nebula-status-legend {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  margin-bottom: 14px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid #283548;
+}
+.status-legend-item {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+  color: #d7e2f1;
+}
+.status-legend-star {
+  position: relative;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--star-color);
+  box-shadow: 0 0 9px color-mix(in srgb, var(--star-color) 54%, transparent);
+}
+.status-legend-item > span:last-child {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+.status-legend-item strong,
+.status-legend-item small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.status-legend-item strong {
+  font-size: 10px;
+  font-weight: 600;
+}
+.status-legend-item small {
+  color: #9fb0c6;
+  font-size: 9px;
+}
+.status-legend-item.is-status-open .status-legend-star {
+  --star-color: #a5b3c6;
+  animation: stellar-open-breathe 5.8s ease-in-out infinite;
+}
+.status-legend-item.is-status-doing .status-legend-star {
+  --star-color: #d7ff4f;
+}
+.status-legend-item.is-status-doing .status-legend-star::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  opacity: 0.55;
+  animation: stellar-work-orbit 3.2s linear infinite;
+}
+.status-legend-item.is-status-blocked .status-legend-star {
+  --star-color: #ffa88e;
+  background: linear-gradient(
+    110deg,
+    var(--star-color) 0 42%,
+    #07101b 43% 72%,
+    var(--star-color) 73%
+  );
+}
+.status-legend-item.is-status-done .status-legend-star {
+  --star-color: #ffd88b;
+  color: #322714;
+  background: #ffd88b;
+}
 .nebula-help p + p {
   margin-top: 10px;
   color: #b9c9df;
@@ -1054,6 +1254,63 @@
   }
   50% {
     transform: translateY(-3px);
+  }
+}
+@keyframes stellar-open-breathe {
+  0%,
+  100% {
+    transform: scale(0.94);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+@keyframes stellar-energy-wave {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.65;
+  }
+  70%,
+  100% {
+    transform: scale(1.85);
+    opacity: 0;
+  }
+}
+@keyframes stellar-work-orbit {
+  from {
+    transform: rotate(-23deg);
+  }
+  to {
+    transform: rotate(337deg);
+  }
+}
+@keyframes stellar-blocked-ring {
+  to {
+    transform: rotate(333deg);
+  }
+}
+@keyframes stellar-eclipse {
+  0%,
+  100% {
+    transform: translateX(42%);
+  }
+  50% {
+    transform: translateX(-42%);
+  }
+}
+@keyframes stellar-afterglow {
+  0%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.2;
+  }
+  45% {
+    transform: scale(1.55);
+    opacity: 0.55;
+  }
+  75% {
+    transform: scale(1.9);
+    opacity: 0;
   }
 }
 @keyframes stellar-land {
@@ -1225,6 +1482,9 @@
     bottom: 58px;
     font-size: 12px;
   }
+  .nebula-status-legend {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .nebula-matrix *,
@@ -1330,7 +1590,7 @@
   border-color: var(--star-color);
 }
 .nebula-anchor.is-done {
-  opacity: 0.65;
+  opacity: 0.78;
 }
 .nebula-anchor.is-done .nebula-star {
   animation: none;

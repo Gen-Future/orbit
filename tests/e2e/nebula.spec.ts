@@ -132,6 +132,64 @@ test('星图桌面与手机：画布、坐标、沉浸、缩放及减少动效',
     await context.close();
   }
 });
+test('星体状态以不同结构和标签呈现', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const page = await context.newPage();
+  const registered = await page.request.post('http://localhost:3001/api/v1/auth/register', {
+    headers: { Origin: 'http://localhost:3001' },
+    data: {
+      email: `state-${randomUUID()}@orbit.test`,
+      password: 'Orbit-state-test-password',
+      name: 'State tester',
+    },
+  });
+  expect(registered.status()).toBe(200);
+  const me = await (await page.request.get('http://localhost:3001/api/v1/auth/me')).json();
+  const prefix = `http://localhost:3001/api/v1/workspaces/${me.memberships[0].workspace.id}`;
+  for (const [index, status] of ['open', 'doing', 'blocked', 'done'].entries()) {
+    const created = await page.request.post(`${prefix}/items`, {
+      headers: { Origin: 'http://localhost:3001', 'Idempotency-Key': randomUUID() },
+      data: { title: `状态星体 ${status}`, quadrant: (index % 4) + 1 },
+    });
+    expect(created.status()).toBe(201);
+    if (status !== 'open') {
+      const item = await created.json();
+      const completed = await page.request.patch(`${prefix}/items/${item.id}`, {
+        headers: { Origin: 'http://localhost:3001', 'Idempotency-Key': randomUUID() },
+        data: { version: 1, status },
+      });
+      expect(completed.status()).toBe(200);
+    }
+  }
+  await page.goto('http://localhost:3001');
+  await enterMap(page);
+  await expect(page.locator('.nebula-item[data-status="open"]')).toContainText('静候');
+  await expect(page.locator('.nebula-item[data-status="doing"]')).toContainText('运转');
+  await expect(page.locator('.nebula-item[data-status="blocked"]')).toContainText('受阻');
+  await page.getByRole('button', { name: '星图筛选' }).click();
+  await page.getByLabel('星图状态').selectOption('all');
+  await expect(page.locator('.nebula-item[data-status="done"]')).toContainText('余辉');
+  await page.locator('.nebula-help-toggle').click();
+  await expect(page.locator('.nebula-status-legend')).toBeVisible();
+  await expect(page.locator('.status-legend-item')).toHaveCount(4);
+  await expect(page.locator('.nebula-star-orbit')).toHaveCount(4);
+  await expect(page.locator('.nebula-star-shadow')).toHaveCount(4);
+  await expect(page.locator('.nebula-star-energy')).toHaveCount(4);
+  await page.screenshot({
+    path: '.impeccable/review/status-stars-desktop.png',
+    animations: 'disabled',
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('.nebula-status-legend')).toBeVisible();
+  await page.screenshot({
+    path: '.impeccable/review/status-stars-mobile.png',
+    animations: 'disabled',
+  });
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+  ).toBeTruthy();
+  await context.close();
+});
 test('星体拖动：象限内保存、跨象限、刷新、取消、错误回退及键盘', async ({ browser }) => {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1000 },

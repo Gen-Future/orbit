@@ -80,6 +80,12 @@ const QUADRANTS = [
   { id: 4, title: '留白星区', action: '暂时放下', detail: '不重要 · 不紧急' },
   { id: 2, title: '生长星区', action: '安排时间', detail: '重要 · 不紧急' },
 ];
+const STATUS_META: Record<string, { label: string; cosmic: string }> = {
+  open: { label: '待开始', cosmic: '静候' },
+  doing: { label: '进行中', cosmic: '运转' },
+  blocked: { label: '已阻塞', cosmic: '受阻' },
+  done: { label: '已完成', cosmic: '余辉' },
+};
 
 function NebulaBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -609,7 +615,8 @@ export function NebulaMatrix<T extends NebulaItem>({
           value={status}
           onChange={(event) => setStatus(event.target.value)}
         >
-          <option value="active">待推进</option>
+          <option value="active">全部未完成</option>
+          <option value="open">待开始</option>
           <option value="doing">进行中</option>
           <option value="blocked">已阻塞</option>
           <option value="done">已完成</option>
@@ -774,6 +781,7 @@ export function NebulaMatrix<T extends NebulaItem>({
               const q =
                 drag?.id === item.id || pending?.id === item.id ? quadrantAt(point) : item.quadrant;
               const pressure = deadlinePressure(item.dueAt, time);
+              const statusMeta = STATUS_META[item.status] || STATUS_META.open;
               const deadline = item.dueAt
                 ? new Intl.DateTimeFormat('zh-CN', {
                     timeZone: zone,
@@ -801,14 +809,15 @@ export function NebulaMatrix<T extends NebulaItem>({
                   onSelect(item);
                 },
               };
-              const classes = `nebula-color-${q} ${drag?.id === item.id && drag.moved ? 'is-dragging' : ''} ${pressure > 0.9 ? 'is-hot' : ''} ${item.status === 'done' ? 'is-done' : ''} ${landed === item.id ? 'just-landed' : ''}`;
+              const classes = `nebula-color-${q} is-status-${item.status} ${drag?.id === item.id && drag.moved ? 'is-dragging' : ''} ${pressure > 0.9 ? 'is-hot' : ''} ${item.status === 'done' ? 'is-done' : ''} ${landed === item.id ? 'just-landed' : ''}`;
               return (
                 <Fragment key={item.id}>
                   <button
                     className={`nebula-anchor ${classes}`}
                     data-anchor-id={item.id}
+                    data-status={item.status}
                     tabIndex={-1}
-                    aria-label={`星体：${item.title}`}
+                    aria-label={`星体：${item.title}，${statusMeta.label}`}
                     style={
                       {
                         left: anchor.x,
@@ -820,8 +829,14 @@ export function NebulaMatrix<T extends NebulaItem>({
                     {...events}
                   >
                     <span className="nebula-star">
+                      <span className="nebula-star-energy" />
                       <span className="nebula-star-halo" />
+                      <span className="nebula-star-orbit">
+                        <span className="nebula-star-satellite" />
+                      </span>
                       <span className="nebula-star-core" />
+                      <span className="nebula-star-shadow" />
+                      <span className="nebula-star-fracture" />
                       {item.status === 'done' && (
                         <Check className="nebula-done-mark" size={13} aria-hidden="true" />
                       )}
@@ -831,9 +846,10 @@ export function NebulaMatrix<T extends NebulaItem>({
                     className={`nebula-item ${classes}`}
                     data-item-id={item.id}
                     data-quadrant={q}
+                    data-status={item.status}
                     data-readonly={!writable ? 'true' : undefined}
                     style={{ left: label.x, top: label.y }}
-                    aria-label={`${item.title}，${QUADRANTS.find((v) => v.id === q)?.detail}，${deadline}`}
+                    aria-label={`${item.title}，${statusMeta.label}，${QUADRANTS.find((v) => v.id === q)?.detail}，${deadline}`}
                     aria-describedby="nebula-instructions"
                     title={`${item.title}\n${deadline}`}
                     {...events}
@@ -843,10 +859,8 @@ export function NebulaMatrix<T extends NebulaItem>({
                       <strong>{item.title}</strong>
                       <small>
                         {item.status === 'done'
-                          ? '已完成'
-                          : item.status === 'blocked'
-                            ? '阻塞中 · ' + dueLabel(item.dueAt, time)
-                            : dueLabel(item.dueAt, time)}
+                          ? '余辉 · 已完成'
+                          : `${statusMeta.cosmic} · ${dueLabel(item.dueAt, time)}`}
                       </small>
                     </span>
                   </button>
@@ -1009,6 +1023,19 @@ export function NebulaMatrix<T extends NebulaItem>({
       </footer>
       {help && (
         <div className="nebula-help">
+          <div className="nebula-status-legend" aria-label="星体状态图例">
+            {Object.entries(STATUS_META).map(([value, meta]) => (
+              <div key={value} className={`status-legend-item is-status-${value}`}>
+                <span className="status-legend-star" aria-hidden="true">
+                  {value === 'done' && <Check size={9} />}
+                </span>
+                <span>
+                  <strong>{meta.cosmic}</strong>
+                  <small>{meta.label}</small>
+                </span>
+              </div>
+            ))}
+          </div>
           <p>
             横轴向右越重要，纵轴向上越紧急。自动漂移在截止前 14
             天开始，始终留在当前象限；手动拖动可跨象限，并保存新坐标。缩放后可滚动探索。

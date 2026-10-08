@@ -2,161 +2,161 @@
 name: Orbit
 description: Flux OS · 会回应行动的 AI 工作操作层
 colors:
-  ink: "#10120f"
-  surface: "#191c17"
-  line: "#31372b"
-  text: "#f2f3eb"
-  muted: "#a2aa97"
-  lime: "#d7ff4f"
-  coral: "#ffa88e"
-  violet: "#b4a0f3"
-  cyan: "#83dcf0"
-  nebula-ink: "#0a0e15"
-  nebula-text: "#eef3fb"
-  nebula-muted: "#a5b3c6"
-  nebula-line: "#283548"
-  nebula-callout: "#0b1322df"
-  sun: "#ffd88b"
-  hole: "#d2afff"
-  universe-input: "#172125"
+  ink: '#10120f'
+  surface: '#191c17'
+  line: '#31372b'
+  text: '#f2f3eb'
+  muted: '#a2aa97'
+  lime: '#d7ff4f'
+  coral: '#ffa88e'
+  violet: '#b4a0f3'
+  cyan: '#83dcf0'
+  nebula-ink: '#0a0e15'
+  nebula-text: '#eef3fb'
+  nebula-muted: '#a5b3c6'
+  nebula-line: '#283548'
+  nebula-callout: '#0b1322df'
+  sun: '#ffd88b'
+  hole: '#d2afff'
+  universe-input: '#172125'
 typography:
   display:
     fontFamily: "Space Grotesk, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif"
-    fontSize: "58px"
+    fontSize: '58px'
     fontWeight: 600
     lineHeight: 1.22
-    letterSpacing: "-0.04em"
+    letterSpacing: '-0.04em'
   headline:
     fontFamily: "Space Grotesk, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif"
-    fontSize: "34px"
+    fontSize: '34px'
     fontWeight: 600
     lineHeight: 1.4
-    letterSpacing: "-0.04em"
+    letterSpacing: '-0.04em'
   title:
     fontFamily: "Space Grotesk, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif"
-    fontSize: "16px"
+    fontSize: '16px'
     fontWeight: 500
-    letterSpacing: "-0.025em"
+    letterSpacing: '-0.025em'
   body:
     fontFamily: "Space Grotesk, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif"
-    fontSize: "14px"
+    fontSize: '14px'
     fontWeight: 400
     lineHeight: 1.55
   label:
     fontFamily: "Space Grotesk, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif"
-    fontSize: "12px"
+    fontSize: '12px'
     fontWeight: 400
   nebula-headline:
     fontFamily: "Space Grotesk, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif"
-    fontSize: "16px"
+    fontSize: '16px'
     fontWeight: 500
-    letterSpacing: "-0.02em"
+    letterSpacing: '-0.02em'
   nebula-title:
     fontFamily: "Space Grotesk, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif"
-    fontSize: "12px"
+    fontSize: '12px'
     fontWeight: 500
     lineHeight: 1.5
   mono:
-    fontFamily: "ui-monospace, SFMono-Regular, monospace"
+    fontFamily: 'ui-monospace, SFMono-Regular, monospace'
 rounded:
-  tag: "4px"
-  check: "5px"
-  control: "7px"
-  field: "8px"
-  toast: "9px"
-  compact-surface: "10px"
-  mobile-intent: "12px"
-  surface: "14px"
-  universe-input: "16px"
-  circle: "50%"
+  tag: '4px'
+  check: '5px'
+  control: '7px'
+  field: '8px'
+  toast: '9px'
+  compact-surface: '10px'
+  mobile-intent: '12px'
+  surface: '14px'
+  universe-input: '16px'
+  circle: '50%'
 spacing:
-  tight: "6px"
-  label-gap: "8px"
-  control-gap: "12px"
-  control-inline: "16px"
-  mobile-gutter: "20px"
-  card: "24px"
-  panel: "26px"
-  desktop-gutter: "42px"
+  tight: '6px'
+  label-gap: '8px'
+  control-gap: '12px'
+  control-inline: '16px'
+  mobile-gutter: '20px'
+  card: '24px'
+  panel: '26px'
+  desktop-gutter: '42px'
 components:
   button-primary:
-    backgroundColor: "{colors.lime}"
-    textColor: "#1b260c"
-    rounded: "{rounded.control}"
-    padding: "11px 16px"
+    backgroundColor: '{colors.lime}'
+    textColor: '#1b260c'
+    rounded: '{rounded.control}'
+    padding: '11px 16px'
   button-primary-hover:
-    backgroundColor: "#e1ff81"
+    backgroundColor: '#e1ff81'
   button-secondary:
-    backgroundColor: "#2a3023"
-    textColor: "#dce5cf"
-    rounded: "{rounded.control}"
-    padding: "11px 16px"
+    backgroundColor: '#2a3023'
+    textColor: '#dce5cf'
+    rounded: '{rounded.control}'
+    padding: '11px 16px'
   button-secondary-hover:
-    backgroundColor: "#37412b"
+    backgroundColor: '#37412b'
   button-text:
-    backgroundColor: "transparent"
-    textColor: "#b9c5a9"
-    padding: "0"
+    backgroundColor: 'transparent'
+    textColor: '#b9c5a9'
+    padding: '0'
   button-complete:
-    backgroundColor: "#24320f"
-    textColor: "{colors.lime}"
-    rounded: "{rounded.control}"
-    padding: "9px 11px"
+    backgroundColor: '#24320f'
+    textColor: '{colors.lime}'
+    rounded: '{rounded.control}'
+    padding: '9px 11px'
   field:
-    backgroundColor: "{colors.ink}"
-    textColor: "{colors.text}"
-    rounded: "{rounded.field}"
-    padding: "11px 12px"
+    backgroundColor: '{colors.ink}'
+    textColor: '{colors.text}'
+    rounded: '{rounded.field}'
+    padding: '11px 12px'
   navigation:
-    backgroundColor: "transparent"
-    textColor: "#a8b19a"
-    rounded: "{rounded.control}"
-    padding: "12px 14px"
+    backgroundColor: 'transparent'
+    textColor: '#a8b19a'
+    rounded: '{rounded.control}'
+    padding: '12px 14px'
   navigation-active:
-    backgroundColor: "{colors.lime}"
-    textColor: "#1a2110"
+    backgroundColor: '{colors.lime}'
+    textColor: '#1a2110'
   signal-chip:
-    textColor: "#bcaadf"
-    rounded: "{rounded.tag}"
-    padding: "3px 7px"
+    textColor: '#bcaadf'
+    rounded: '{rounded.tag}'
+    padding: '3px 7px'
   card:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.text}"
-    rounded: "{rounded.surface}"
-    padding: "24px"
+    backgroundColor: '{colors.surface}'
+    textColor: '{colors.text}'
+    rounded: '{rounded.surface}'
+    padding: '24px'
   intent:
-    backgroundColor: "#1a2014"
-    rounded: "{rounded.surface}"
-    padding: "19px 22px 14px"
+    backgroundColor: '#1a2014'
+    rounded: '{rounded.surface}'
+    padding: '19px 22px 14px'
   nebula-callout:
-    backgroundColor: "{colors.nebula-callout}"
-    textColor: "{colors.nebula-text}"
-    typography: "{typography.nebula-title}"
-    rounded: "{rounded.field}"
-    padding: "6px 8px"
-    width: "176px"
-    height: "62px"
+    backgroundColor: '{colors.nebula-callout}'
+    textColor: '{colors.nebula-text}'
+    typography: '{typography.nebula-title}'
+    rounded: '{rounded.field}'
+    padding: '6px 8px'
+    width: '176px'
+    height: '62px'
   universe-input:
-    backgroundColor: "{colors.universe-input}"
-    textColor: "{colors.lime}"
-    rounded: "{rounded.universe-input}"
-    padding: "6px 8px 6px 18px"
-    width: "min(620px, calc(100% - 32px))"
+    backgroundColor: '{colors.universe-input}'
+    textColor: '{colors.lime}'
+    rounded: '{rounded.universe-input}'
+    padding: '6px 8px 6px 18px'
+    width: 'min(620px, calc(100% - 32px))'
   sun-target:
-    textColor: "{colors.sun}"
-    width: "108px"
-    height: "108px"
+    textColor: '{colors.sun}'
+    width: '108px'
+    height: '108px'
   blackhole-target:
-    textColor: "{colors.hole}"
-    width: "144px"
-    height: "100px"
+    textColor: '{colors.hole}'
+    width: '144px'
+    height: '100px'
   capture-mobile:
-    backgroundColor: "{colors.lime}"
-    textColor: "#1d270f"
-    rounded: "{rounded.compact-surface}"
-    height: "48px"
-    width: "100%"
-    padding: "13px 15px"
+    backgroundColor: '{colors.lime}'
+    textColor: '#1d270f'
+    rounded: '{rounded.compact-surface}'
+    height: '48px'
+    width: '100%'
+    padding: '13px 15px'
 ---
 
 # Design System: Orbit
@@ -243,13 +243,13 @@ Q1 右上为暖珊瑚，Q2 右下为酸性青柠，Q3 左上为柔紫罗兰，Q4
 
 ### Responsive behavior
 
-| 条件 | 现有布局行为 |
-| --- | --- |
-| ≥1550px | 今日问候增至 68px，主区上留白 42px，重点事项体量增大。 |
-| ≤1150px | 导航收为 195px，主区左右留白 26px，问候 48px。 |
-| ≤900px | 导航收为 178px，顶栏 65px，左右留白 22px；工作重点、项目和设置改为单栏；问候 44px。 |
-| ≤700px | 管理导航改为 255px 抽屉；星图首页只保留紧凑动作条，地图保持二维四象限坐标场；输入栏与控制栏固定在地图下方，不遮挡星体。 |
-| ≤370px | 主区左右留白 16px，问候 37px，双列表单改为单列。 |
+| 条件    | 现有布局行为                                                                                                            |
+| ------- | ----------------------------------------------------------------------------------------------------------------------- |
+| ≥1550px | 今日问候增至 68px，主区上留白 42px，重点事项体量增大。                                                                  |
+| ≤1150px | 导航收为 195px，主区左右留白 26px，问候 48px。                                                                          |
+| ≤900px  | 导航收为 178px，顶栏 65px，左右留白 22px；工作重点、项目和设置改为单栏；问候 44px。                                     |
+| ≤700px  | 管理导航改为 255px 抽屉；星图首页只保留紧凑动作条，地图保持二维四象限坐标场；输入栏与控制栏固定在地图下方，不遮挡星体。 |
+| ≤370px  | 主区左右留白 16px，问候 37px，双列表单改为单列。                                                                        |
 
 ### Mobile capture and scrolling
 
@@ -336,13 +336,15 @@ AI 信号标签为紫色文字、细描边和紧凑小圆角；标签用于识�
 
 星体和文字标注均可点击打开既有详情，也可在有写入权限时拖动。拖动采用指针捕获，允许象限内定位与跨轴重新归类；至少移动 6px 才判为拖动，避免点击误操作。目标象限以同色浅背景提示，释放后持久化新坐标与象限，保存失败恢复原位置并播报结果。只读状态保留详情入口。
 
+象限继续决定星体主色，事项状态决定内部结构与运动：`open` 是缓慢呼吸的“静候”，`doing` 是伴星绕行并向外释放能量波的“运转”，`blocked` 是带暗面遮挡、断裂虚线环和反向运动的“受阻”，`done` 是金白核心、勾选与缓慢扩散光圈组成的“余辉”。四种状态同时写入标注文字和帮助图例，颜色不作为唯一识别信号。星体悬停、键盘聚焦和拖动期间暂停内部运动，避免交互目标漂移。
+
 太阳固定在坐标原点，是完成目标。拖动超过点击阈值后，地图底部临时浮出紫色 **黑洞**；删除保存或吸入播放时短暂保留，其他时候不占布局。天体目标不直接接收指针事件，拖动落点由命中区域计算。指针进入太阳显示“松手，完成这件事”，进入黑洞显示“松手删除 · 可撤销”。服务端成功确认后，太阳吸入动画让星体沿弧线缩小飞入太阳；黑洞以同一空间反馈吸收并删除，随后显示撤销入口。删除是逻辑删除，不计完成成就；历史、归档和周报来源继续保留。移出目标后松手仍保存坐标，Escape、指针取消、只读权限和禁用状态均不能提交。
 
 逻辑坐标 `orbitX`、`orbitY` 与放置时刻 `orbitPlacedAt` 持久化；屏幕大小、缩放、搜索、分页与标注避让均不得改写这些值。新的手动放置以服务端时间重新锚定自动漂移。截止前最多 14 天开始缓慢向上移动，横坐标不变，始终留在当前所属象限；已完成或没有截止日期的事项不漂移，截止后手动放置保持稳定。自动漂移不能代替用户重新分类。
 
 键盘聚焦标注后按 Alt + 方向键移动，Escape 取消正在进行的拖动；指针取消或失去捕获也恢复原位置。移动、太阳完成、黑洞删除与保存结果通过 `role="status"` 播报，焦点有象限色轮廓。手机主要地图操作最小高 44px，黑洞命中区域为 124 × 80px，太阳命中区域为 78 × 78px，缩放栏不覆盖地图。桌面太阳目标 108 × 108px、黑洞目标 144 × 100px；太阳核心占目标 56%。
 
-太阳日冕呼吸 6s、光环转动 16s；黑洞吸积盘形变循环 3s。成功后的星体吸入持续 1000ms，以弧线位移、缩小、旋转与淡出到达目标；太阳奖励日冕持续 1000ms。普通位置过渡为 1.4s，星体轻浮动为 7s，落点光环为 0.8s；拖动时关闭位置过渡并暂停浮动。系统减少动态效果与应用轻量动效均关闭星图动画和过渡，坐标、截止提示、完成标记与操作结果继续可见。
+太阳日冕呼吸 6s、光环转动 16s；黑洞吸积盘形变循环 3s。成功后的星体吸入持续 1000ms，以弧线位移、缩小、旋转与淡出到达目标；太阳奖励日冕持续 1000ms。普通位置过渡为 1.4s，星体轻浮动为 7s，落点光环为 0.8s；拖动时关闭位置过渡并暂停浮动。状态动画保持低频且错峰运行，不改变星体的点击区域和真实坐标。系统减少动态效果与应用轻量动效均关闭星图动画和过渡，四种状态的结构、文字、坐标、截止提示、完成标记与操作结果继续可见。
 
 ## Do's and Don'ts
 

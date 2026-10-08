@@ -1,8 +1,9 @@
 ---
 version: 1
-slug: "src-components-nebula-matrix-tsx"
-primary_target: "src/components/nebula-matrix.tsx"
-related_targets: ["src/components/orbit.tsx", "src/app/nebula.css", "packages/core/src/orbit-labels.ts"]
+slug: 'src-components-nebula-matrix-tsx'
+primary_target: 'src/components/nebula-matrix.tsx'
+related_targets:
+  ['src/components/orbit.tsx', 'src/app/nebula.css', 'packages/core/src/orbit-labels.ts']
 ---
 
 # Orbit universe home
@@ -19,6 +20,8 @@ STORY: Login directly into the map, capture a natural-language task at the botto
 
 TIME SEDIMENT: Unfinished items overdue by 168 hours leave the normal label layout and collect in a right-edge belt outside the coordinate semantics. Four desktop clusters preserve quadrant color; mobile uses one edge trigger. The drawer supports scanning, completion and atomic bulk rescheduling without persisting a separate sediment state.
 
+STATUS CELESTIALS: Quadrant owns hue while item status owns silhouette and motion. Open breathes quietly; doing carries an orbiting satellite and energy wave; blocked has an occluding shadow, broken ring and counter-rotation; done leaves a warm checked afterglow. Text labels and the help legend repeat the distinction, and reduced motion preserves every static cue.
+
 FIRST VIEWPORT: Compact orbit brand / 工作舱 at the top left, small filter, notification, focus and capture controls at the right. No permanent sidebar or management breadcrumb. The coordinate map fills the middle; sun sits exactly on the origin. An independent bottom capture form and map controls remain reachable on phone and desktop.
 
 FORM: Code-led extension of the existing procedural coordinate world; the user's sun/black-hole brief determines the form. The signature response is a curved shrinking stellar flight to the sun or black hole after the server acknowledges success. Failure preserves the item; deletion is undoable and distinct from completion. Reduced motion retains truthful text feedback and removes spatial flight.
@@ -27,4 +30,4 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 
 ## Persistent interaction rules
 
-Coordinates and manual quadrant changes remain atomic and persistent. Deadline drift stays inside the assigned quadrant. Callout collision avoidance never modifies stored coordinates. Pointer capture, Escape, pointer cancellation, keyboard Alt+arrow movement and readable two-dimensional mobile mapping remain supported. The central sun owns a reserved label exclusion region. Completed items keep their completion history; deleted items and their child items stop reminding and disappear from ordinary queries. Deletion and restoration are separate audited, versioned, idempotent endpoints. Previously deleted children are not restored incidentally when a parent is restored.
+Coordinates and manual quadrant changes remain atomic and persistent. Deadline drift stays inside the assigned quadrant. Callout collision avoidance never modifies stored coordinates. Pointer capture, Escape, pointer cancellation, keyboard Alt+arrow movement and readable two-dimensional mobile mapping remain supported. Status motion pauses on hover, keyboard focus and drag. The central sun owns a reserved label exclusion region. Completed items keep their completion history; deleted items and their child items stop reminding and disappear from ordinary queries. Deletion and restoration are separate audited, versioned, idempotent endpoints. Previously deleted children are not restored incidentally when a parent is restored.
