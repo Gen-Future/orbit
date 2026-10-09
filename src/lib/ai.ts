@@ -26,7 +26,13 @@ export async function activeModelEndpoint(): Promise<ModelEndpoint | null> {
   };
 }
 
-function modelRequest(endpoint: ModelEndpoint, system: string, input: string, json = true) {
+function modelRequest(
+  endpoint: ModelEndpoint,
+  system: string,
+  input: string,
+  json = true,
+  maxTokens = 2000,
+) {
   const native = endpoint.provider === 'ollama';
   const disableThinking =
     !native &&
@@ -47,7 +53,7 @@ function modelRequest(endpoint: ModelEndpoint, system: string, input: string, js
           ? { format: 'json' }
           : {}
         : json
-          ? { response_format: { type: 'json_object' }, max_tokens: 2000 }
+          ? { response_format: { type: 'json_object' }, max_tokens: maxTokens }
           : { max_tokens: 2 }),
       ...(disableThinking ? { enable_thinking: false } : {}),
     },
@@ -78,6 +84,7 @@ export async function callModel(
   input: string,
   sourceIds: string[],
   system: string,
+  maxTokens = 2000,
 ) {
   const endpoint = await activeModelEndpoint();
   const model = endpoint?.model;
@@ -95,7 +102,7 @@ export async function callModel(
   try {
     invariant(endpoint && model, 503, '尚未配置 AI 模型');
     const key = endpoint.encryptedKey ? decrypt(endpoint.encryptedKey) : process.env.AI_API_KEY;
-    const request = modelRequest(endpoint, system, input);
+    const request = modelRequest(endpoint, system, input, true, maxTokens);
     const response = await fetch(request.url, {
       method: 'POST',
       headers: {
@@ -125,7 +132,7 @@ export async function callModel(
     return { jobId: job.id, result: null };
   }
 }
-async function finish(jobId: string, output: unknown, valid: boolean) {
+export async function finish(jobId: string, output: unknown, valid: boolean) {
   await db.aIJob.update({
     where: { id: jobId },
     data: {

@@ -28,7 +28,9 @@ import {
   signals,
   bulkRescheduleItems,
 } from '@/lib/items';
-import { activeModelEndpoint, capture, probeModelEndpoint, reportDraft } from '@/lib/ai';
+import { reportApi } from '@/lib/report-api';
+import { reportDraft } from '@/lib/reports';
+import { activeModelEndpoint, capture, probeModelEndpoint } from '@/lib/ai';
 import {
   skills,
   scopes,
@@ -41,9 +43,9 @@ export const dynamic = 'force-dynamic';
 type Context = { params: Promise<{ path?: string[] }> };
 const ok = (body: unknown, status = 200) =>
   NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
-async function body(req: Request) {
+async function body(req: Request, maxLength = 65536) {
   const text = await req.text();
-  invariant(text.length <= 65536, 413, '请求内容过大');
+  invariant(text.length <= maxLength, 413, '请求内容过大');
   try {
     return JSON.parse(text);
   } catch {
@@ -355,7 +357,7 @@ async function handler(req: Request, context: Context) {
           : 'projects.write'
         : resource === 'events'
           ? 'events.read'
-          : resource === 'reports'
+          : resource === 'reports' || resource === 'report-template'
             ? method === 'GET'
               ? 'reports.read'
               : 'reports.write'
@@ -677,58 +679,17 @@ async function handler(req: Request, context: Context) {
       );
     }
     if (resource === 'signals' && method === 'GET') return ok(await signals(wid));
-    if (resource === 'reports') {
-      if (method === 'GET')
-        return ok(
-          await db.report.findMany({
-            where: { workspaceId: wid },
-            orderBy: { createdAt: 'desc' },
-            take: 30,
-          }),
-        );
-      if (method === 'POST') {
-        await authorize(req, wid, 'events.read');
-        await authorize(req, wid, 'items.read');
-        const input = await body(req);
-        const draft = await reportDraft(actor, input);
-        return ok(
-          await mutation(actor, key, { route: 'report', input }, async (tx) => {
-            const report = await tx.report.create({ data: { workspaceId: wid, ...draft } });
-            await tx.itemEvent.create({
-              data: {
-                workspaceId: wid,
-                actorId: actor.id,
-                type: 'report.created',
-                data: { reportId: report.id, sourceIds: report.sourceIds },
-              },
-            });
-            return report;
-          }),
-          201,
-        );
-      }
-      if (method === 'PATCH' && id) {
-        const input = z.object({ content: z.string().max(50000) }).parse(await body(req));
-        return ok(
-          await mutation(actor, key, { route: `report:${id}`, input }, async (tx) => {
-            invariant(
-              await tx.report.findFirst({ where: { id, workspaceId: wid } }),
-              404,
-              '周报不存在',
-            );
-            const report = await tx.report.update({ where: { id }, data: input });
-            await tx.itemEvent.create({
-              data: {
-                workspaceId: wid,
-                actorId: actor.id,
-                type: 'report.updated',
-                data: { reportId: id },
-              },
-            });
-            return report;
-          }),
-        );
-      }
+    if (resource === 'reports' || resource === 'report-template') {
+      const response = await reportApi(
+        req,
+        actor,
+        resource,
+        id,
+        path[4],
+        method === 'GET' ? null : await body(req, 262144),
+        key,
+      );
+      if (response) return response;
     }
     if ((resource === 'ai' && method === 'POST') || (resource === 'skills' && method === 'POST')) {
       const input = z
@@ -739,6 +700,9 @@ async function handler(req: Request, context: Context) {
           projectId: z.string().optional(),
           startAt: z.string().optional(),
           endAt: z.string().optional(),
+          sourceIds: z.array(z.string()).max(200).optional(),
+          templateId: z.string().optional(),
+          templateVersion: z.number().int().positive().optional(),
         })
         .parse(await body(req));
       const skillId = resource === 'skills' ? id : input.skillId || 'capture-item';

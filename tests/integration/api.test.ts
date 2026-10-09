@@ -44,6 +44,9 @@ async function request(
 }
 test('真实 API / PostgreSQL 业务与隔离闭环', async (t) => {
   const { db } = await import('../../src/lib/db');
+  // The isolated test database is reused across runs. Retire previous fixtures so
+  // the worker's 100-row delivery batch always includes this run's notices.
+  await db.notification.updateMany({ where: { readAt: null }, data: { readAt: new Date() } });
   await t.test('注册、登录与创建独立空间', async () => {
     for (const who of ['a', 'b']) {
       const response = await request(

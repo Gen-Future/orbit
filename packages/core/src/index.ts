@@ -137,7 +137,7 @@ export const skills = [
     id: 'weekly-report',
     name: '周报草稿',
     description: '用实际工作事件生成有来源的周报',
-    permissions: ['events.read', 'reports.write', 'ai.run'],
+    permissions: ['items.read', 'events.read', 'reports.write', 'ai.run'],
     writes: true,
   },
   {
@@ -174,6 +174,9 @@ export const skills = [
           properties: {
             startAt: { type: 'string', format: 'date-time' },
             endAt: { type: 'string', format: 'date-time' },
+            sourceIds: { type: 'array', maxItems: 200, items: { type: 'string' } },
+            templateId: { type: 'string' },
+            templateVersion: { type: 'integer', minimum: 1 },
           },
         }
       : s.id === 'project-recap'

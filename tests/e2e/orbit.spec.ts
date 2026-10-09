@@ -106,12 +106,9 @@ test('UI 完整事项闭环与持久化', async ({ browser }) => {
   await page.getByLabel('归档状态').selectOption('archived');
   await expect(page.getByText('端到端验收事项', { exact: true }).first()).toBeVisible();
   await page.getByRole('button', { name: '周报', exact: true }).click();
-  await page
-    .getByLabel('结束日期（不含）')
-    .fill(new Date(Date.now() + 864e5).toISOString().slice(0, 10));
-  await page.getByRole('button', { name: '生成有来源的周报' }).click();
+  await page.getByRole('button', { name: '铸造本周周报', exact: true }).click();
   await expect(page.getByLabel('周报内容')).toHaveValue(/端到端验收事项/);
-  await page.locator('.report-sources button').first().click();
+  await page.locator('.foundry-evidence button').first().click();
   await expect(page.getByRole('dialog').getByLabel('事项名称')).toHaveValue('端到端验收事项');
   const detail = page.getByRole('dialog');
   await expect(detail.getByRole('group', { name: '快速切换事项状态' })).toBeVisible();

@@ -54,6 +54,7 @@ import {
   localParts,
   type CaptureDraft,
 } from '../../packages/core/src';
+import { ReportFoundry } from './report-foundry';
 import { NebulaMatrix, type StellarOutcome } from './nebula-matrix';
 import type { SedimentPage, SedimentSummary } from './sediment-belt';
 import type { OrbitPoint } from '../../packages/core/src/orbit-position';
@@ -67,6 +68,7 @@ type Item = {
   version: number;
   projectId: string | null;
   parentId: string | null;
+  sourceReportId?: string | null;
   project?: Project | null;
   createdAt: string;
   occurredAt: string;
@@ -277,6 +279,7 @@ export default function Orbit() {
     [wid, setWid] = useState(''),
     [ready, setReady] = useState(false),
     [bootError, setBootError] = useState('');
+  const [reportTarget, setReportTarget] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('matrix'),
     [items, setItems] = useState<Item[]>([]),
     [projects, setProjects] = useState<Project[]>([]),
@@ -331,6 +334,10 @@ export default function Orbit() {
       setUser(me.user);
       setMemberships(me.memberships);
       const params = new URLSearchParams(window.location.search);
+      if (params.get('report')) {
+        setReportTarget(params.get('report'));
+        setTab('reports');
+      }
       const stored = params.get('workspace') || localStorage.getItem('orbit.workspace');
       setWid((current) =>
         me.memberships.some((m) => m.workspace.id === current)
@@ -793,7 +800,7 @@ export default function Orbit() {
     );
   return (
     <div
-      className={`app ${writable && !['matrix', 'admin'].includes(tab) ? 'has-capture' : ''} ${reduced ? 'reduced-motion' : ''} ${tab === 'matrix' ? 'matrix-page' : ''} ${matrixImmersive && tab === 'matrix' ? 'matrix-immersive' : ''}`}
+      className={`app ${writable && !['matrix', 'admin', 'reports'].includes(tab) ? 'has-capture' : ''} ${reduced ? 'reduced-motion' : ''} ${tab === 'matrix' ? 'matrix-page' : ''} ${matrixImmersive && tab === 'matrix' ? 'matrix-immersive' : ''}`}
     >
       <a href="#main" className="skip-link">
         跳转到主内容
@@ -1257,7 +1264,7 @@ export default function Orbit() {
           )}
           {tab !== 'today' && (
             <>
-              {tab !== 'matrix' && (
+              {!['matrix', 'reports'].includes(tab) && (
                 <div className="page-heading">
                   <div>
                     <h1>
@@ -1552,26 +1559,17 @@ export default function Orbit() {
                 </>
               )}
               {tab === 'reports' && (
-                <ReportStudio
-                  reports={reports}
+                <ReportFoundry
+                  key={wid}
+                  wid={wid}
                   zone={zone}
-                  items={items}
-                  disabled={!writable || Boolean(busy)}
+                  userId={user!.id}
+                  writable={writable}
+                  request={api}
                   onOpen={openItem}
-                  onGenerate={(value) =>
-                    run('report', async () => {
-                      await api(`${prefix}/reports`, 'POST', value);
-                      await refresh();
-                      notify('周报草稿已生成，每一项都可以追溯。');
-                    })
-                  }
-                  onSave={(id, content) =>
-                    run('report-save', async () => {
-                      await api(`${prefix}/reports/${id}`, 'PATCH', { content });
-                      await refresh();
-                      notify('周报已保存。');
-                    })
-                  }
+                  onChanged={refresh}
+                  reportTarget={reportTarget}
+                  sourceRevision={items.map((i) => `${i.id}:${i.version}`).join(',')}
                   notify={notify}
                 />
               )}
@@ -1606,7 +1604,7 @@ export default function Orbit() {
               )}
             </>
           )}
-          {tab !== 'matrix' && (
+          {!['matrix', 'reports'].includes(tab) && (
             <footer className="app-footer">
               <span>
                 <OrbitIcon size={13} /> KEEP YOUR WORLD IN MOTION.
@@ -1618,7 +1616,7 @@ export default function Orbit() {
           )}
         </main>
       </div>
-      {writable && tab !== 'matrix' && tab !== 'admin' && (
+      {writable && !['matrix', 'admin', 'reports'].includes(tab) && (
         <div className="capture-dock">
           <button
             className={`floating-capture ${tab === 'today' ? 'mobile-capture' : ''}`}
@@ -1661,6 +1659,11 @@ export default function Orbit() {
           onSave={(changes) => patch(selected, changes)}
           onDelete={() => deleteItem(selected)}
           onRestore={() => restoreItem(selected)}
+          onReport={(id) => {
+            setReportTarget(id);
+            setTab('reports');
+            setSelected(null);
+          }}
           onSelect={setSelected}
           onSnooze={() =>
             run('snooze', async () => {
@@ -2133,6 +2136,7 @@ function DetailPanel({
   onAI,
   onDelete,
   onRestore,
+  onReport,
 }: {
   item: Item;
   projects: Project[];
@@ -2148,6 +2152,7 @@ function DetailPanel({
   onAI: () => void;
   onDelete: () => void;
   onRestore: () => void;
+  onReport: (id: string) => void;
 }) {
   const [title, setTitle] = useState(item.title),
     [notes, setNotes] = useState(item.notes),
@@ -2174,6 +2179,14 @@ function DetailPanel({
             </button>
           )}
         </div>
+      )}
+      {item.sourceReportId && (
+        <section className="detail-section report-origin">
+          <p>由下周计划进入轨道</p>
+          <button className="text-button" onClick={() => onReport(item.sourceReportId!)}>
+            查看来源周报 <ArrowUpRight size={14} />
+          </button>
+        </section>
       )}
       {!item.deletedAt && (
         <section className="detail-status-switcher" aria-labelledby="detail-status-title">

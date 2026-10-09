@@ -12,37 +12,37 @@ Base: `/api/v1/workspaces/{workspaceId}`. JSON only. Authenticate by HttpOnly se
 
 ## Resources
 
-| Method | Resource | Behavior |
-|---|---|---|
-| GET | `/items` | `{items,total,page,limit}`; filters `q`, `projectId`, `status`, `archived=true`, `all=true`, `deleted=true`, `from`, `to`; default 500, max 1000 per page |
-| GET | `/items/:id` | Item, project, children, pending reminders, latest 100 events |
-| GET | `/items/sediment` | Items overdue by at least 168 hours; filters `q`, `quadrant`, `page`, `limit`; returns global quadrant summary |
-| POST | `/items` | Create item; fields title, notes, quadrant, projectId, parentId, dueAt, occurredAt, reminderAt |
-| POST | `/items/bulk-reschedule` | Atomically reschedule 1–100 sediment items with `{items:[{id,version}],dueAt}` |
-| PATCH | `/items/:id` | Update with version; additional status and archived fields |
-| DELETE | `/items/:id` | `{version}`; reversible deletion, returns `{item, affectedIds}` |
-| POST | `/items/:id/restore` | `{version}`; restore deletion, returns `{item, affectedIds}` |
-| POST | `/items/:id/plan` | Confirm revised draft and add subtasks atomically; requires version |
-| POST | `/items/:id/snooze` | `{minutes:5..10080}` replaces pending reminders |
-| POST | `/capture` | Confirm natural-language draft and up to 12 child tasks atomically |
-| GET/POST | `/projects` | List/create projects; creation takes name, description, hex color |
-| GET | `/events` | Newest 200 events; optional itemId and before timestamp |
-| GET | `/signals` | Overdue, seven-day inactive, top important items |
-| GET/POST | `/reports` | List drafts / create with startAt, endAt (max 93 days) |
-| PATCH | `/reports/:id` | Save edited Markdown content |
-| POST | `/ai` | `{text,skillId?,itemId?}`; returns draft, mode, message and jobId; never creates an item |
-| GET | `/skills` | Versioned manifests, JSON schemas, permissions, triggers |
-| POST | `/skills/:id/run` | Run capability with declared input and required scopes |
-| GET | `/settings` | Safe model config metadata, own notification settings, channel availability |
-| POST | `/settings/ai` | Retired: returns 403 because AI endpoints are managed globally |
-| POST | `/settings/notifications` | Own reminder channels, quiet hours, daily limit, morning schedule, pausedUntil |
-| GET | `/notifications` | Own latest 100 inbox signals |
-| POST | `/notifications/read` | `{id}` marks own notification read |
-| POST | `/notifications/subscribe` | Standard PushSubscription JSON; trusted browser push endpoints only |
-| GET/POST | `/members` | Read members / admin adds existing user or creates one with initial password |
-| PATCH | `/members/:id` | Owner changes non-owner member role |
-| GET/POST/DELETE | `/tokens[/:id]` | Admin lists, creates or revokes workspace tokens; secret returned only at creation |
-| GET | `/export` | Admin export of workspace, projects, items, all events and reports |
+| Method          | Resource                   | Behavior                                                                                                                                                  |
+| --------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET             | `/items`                   | `{items,total,page,limit}`; filters `q`, `projectId`, `status`, `archived=true`, `all=true`, `deleted=true`, `from`, `to`; default 500, max 1000 per page |
+| GET             | `/items/:id`               | Item, project, children, pending reminders, latest 100 events                                                                                             |
+| GET             | `/items/sediment`          | Items overdue by at least 168 hours; filters `q`, `quadrant`, `page`, `limit`; returns global quadrant summary                                            |
+| POST            | `/items`                   | Create item; fields title, notes, quadrant, projectId, parentId, dueAt, occurredAt, reminderAt                                                            |
+| POST            | `/items/bulk-reschedule`   | Atomically reschedule 1–100 sediment items with `{items:[{id,version}],dueAt}`                                                                            |
+| PATCH           | `/items/:id`               | Update with version; additional status and archived fields                                                                                                |
+| DELETE          | `/items/:id`               | `{version}`; reversible deletion, returns `{item, affectedIds}`                                                                                           |
+| POST            | `/items/:id/restore`       | `{version}`; restore deletion, returns `{item, affectedIds}`                                                                                              |
+| POST            | `/items/:id/plan`          | Confirm revised draft and add subtasks atomically; requires version                                                                                       |
+| POST            | `/items/:id/snooze`        | `{minutes:5..10080}` replaces pending reminders                                                                                                           |
+| POST            | `/capture`                 | Confirm natural-language draft and up to 12 child tasks atomically                                                                                        |
+| GET/POST        | `/projects`                | List/create projects; creation takes name, description, hex color                                                                                         |
+| GET             | `/events`                  | Newest 200 events; optional itemId and before timestamp                                                                                                   |
+| GET             | `/signals`                 | Overdue, seven-day inactive, top important items                                                                                                          |
+| GET/POST        | `/reports`                 | List drafts / create with startAt, endAt (max 93 days)                                                                                                    |
+| PATCH           | `/reports/:id`             | Save edited Markdown content                                                                                                                              |
+| POST            | `/ai`                      | `{text,skillId?,itemId?}`; returns draft, mode, message and jobId; never creates an item                                                                  |
+| GET             | `/skills`                  | Versioned manifests, JSON schemas, permissions, triggers                                                                                                  |
+| POST            | `/skills/:id/run`          | Run capability with declared input and required scopes                                                                                                    |
+| GET             | `/settings`                | Safe model config metadata, own notification settings, channel availability                                                                               |
+| POST            | `/settings/ai`             | Retired: returns 403 because AI endpoints are managed globally                                                                                            |
+| POST            | `/settings/notifications`  | Own reminder channels, quiet hours, daily limit, morning schedule, pausedUntil                                                                            |
+| GET             | `/notifications`           | Own latest 100 inbox signals                                                                                                                              |
+| POST            | `/notifications/read`      | `{id}` marks own notification read                                                                                                                        |
+| POST            | `/notifications/subscribe` | Standard PushSubscription JSON; trusted browser push endpoints only                                                                                       |
+| GET/POST        | `/members`                 | Read members / admin adds existing user or creates one with initial password                                                                              |
+| PATCH           | `/members/:id`             | Owner changes non-owner member role                                                                                                                       |
+| GET/POST/DELETE | `/tokens[/:id]`            | Admin lists, creates or revokes workspace tokens; secret returned only at creation                                                                        |
+| GET             | `/export`                  | Admin export of workspace, projects, items, all events and reports                                                                                        |
 
 Workspace creation: `POST /api/v1/workspaces` with name and IANA timezone (user session required).
 Authentication: `/api/v1/auth/status`, `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/me`.
@@ -70,7 +70,7 @@ AI payloads are untrusted data: output is schema checked, project IDs are revali
 `PATCH /api/v1/workspaces/:workspaceId/items/:id` 可提交：
 
 ```json
-{"version": 2, "position": {"x": -0.4, "y": 0.6}}
+{ "version": 2, "position": { "x": -0.4, "y": 0.6 } }
 ```
 
 横轴向右为重要，纵轴向上为紧急。输入坐标范围为 -1 至 1，服务端将落点约束到各半轴绝对值 0.1–0.88 的安全区域。服务端根据坐标计算 quadrant，并在同一事务保存 `orbitX`、`orbitY`、`orbitPlacedAt`、版本和 before/after 历史。若同时传 quadrant，必须与坐标一致。坐标写入沿用 `items.write`、工作空间权限、Idempotency-Key 和 version 冲突检查。
@@ -92,3 +92,25 @@ AI payloads are untrusted data: output is schema checked, project IDs are revali
 普通列表始终排除已删除事项，`all=true` 只扩展归档范围；`deleted=true` 专门查询已删除事项，并忽略归档条件。单事项详情、事件和工作空间导出仍可追溯删除记录。已删除事项不能编辑或稍后提醒，新周报与主动提示不再选取它们。
 
 恢复通过 `POST /items/:id/restore` 执行，追加 `undeleted` 事件。恢复主事项仅恢复同次级联删除的子事项，之前单独删除的子事项保持删除；单独恢复子事项前须恢复主事项。恢复不改变原来的完成/归档状态，也不重建已取消的提醒，需要另行设置提醒时间。
+
+## 周报铸造舱
+
+所有路径均在 `/api/v1/workspaces/:wid` 下。读取需要 `reports.read`；生成同时需要 `items.read`、`events.read`、`reports.write`、`ai.run`。写入继续使用 `Idempotency-Key`。个人模板只支持登录用户，访问令牌使用标准模板。
+
+| 方法  | 路径                                 | 行为                                                                                                                                             |
+| ----- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET   | `/reports/context?anchor=YYYY-MM-DD` | 返回工作空间时区中的自然周、七日日历、缓存状态、个人模板及全部当周实质进展候选；不受星图 1000 条上限影响                                         |
+| GET   | `/reports/candidates`                | `startAt,endAt,q,projectId,status,page,limit`；每页最多 50 条。`mode=activity` 查询实质进展，`mode=all` 按 occurredAt 查询（包含归档，排除删除） |
+| GET   | `/reports/:id`                       | 单份周报，包含版本、生成模式、来源快照与风格建议状态                                                                                             |
+| GET   | `/report-template`                   | 当前用户在该空间的个人模板，未建立返回 null                                                                                                      |
+| POST  | `/report-template/learn`             | `{samples:[string]}`，1–5 篇、合计最多 60000 字符；返回 `{definition,mode}` 提案，不保存原始样本                                                 |
+| PATCH | `/report-template`                   | `{version,definition}`；首次 version=0，后续匹配当前版本。definition 包含 name、skeleton、tone、length、formatting、avoid                        |
+| POST  | `/reports`                           | `{startAt,endAt,sourceIds?,templateId?,templateVersion?}`；精确使用最多 200 项选择。省略 sourceIds 时使用当期实质进展；省略模板时使用标准风格    |
+| PATCH | `/reports/:id`                       | `{content,version?}`；推荐传版本，冲突返回 409。兼容旧 content-only 客户端                                                                       |
+| POST  | `/reports/:id/style`                 | `{decision:"accept"\|"ignore",version,templateVersion}`；仅作者可处理建议，接受才更新个人模板                                                    |
+| POST  | `/reports/:id/plan`                  | 提取已保存稿的下周计划，返回 `{drafts,batchId,version,mode}`；不会创建事项                                                                       |
+| POST  | `/reports/:id/plan-items`            | `{batchId,version,drafts}`，1–12 项，需 items.write；原子创建事项并设置 sourceReportId                                                           |
+
+日期范围起点包含、终点不含，最长 93 天。实质进展包括创建、内容/状态/项目/手动分类变更、完成与重开；星体移动、提醒和归档生命周期不作为工作进展。补选其他时期事项标为补充材料。AI 输出必须引用所选事项并提供原文证据；未知来源、证据不匹配或无依据数字降级为确定性草稿。每份周报保存当前来源快照与模板快照，后续修改事项不改变旧快照。Markdown 正文使用短来源引用，完整事项 URL 以文末引用定义保留，保存、复制与下载均保留可追溯链接。
+
+计划草稿必须对应当前周报版本。同一版计划只允许导入一次，即使更换幂等键也不能重复；更新并保存周报后可以重新提取。所有事项创建与批次占用在一个事务中完成，任一项失败整体回滚。原始历史样本不进入业务数据库、审计事件或幂等回执；AIJob 只保留输入哈希和提炼结果。

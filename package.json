@@ -15,7 +15,7 @@
     "admin:provision": "node --env-file-if-exists=.env --import tsx scripts/provision-admin.ts",
     "worker": "node --env-file-if-exists=.env --import tsx apps/worker/src/index.ts",
     "test": "node --import tsx --test tests/*.test.ts",
-    "test:integration": "node --import tsx --test tests/integration/*.test.ts",
+    "test:integration": "node --env-file-if-exists=.env --import tsx --test --test-concurrency=1 tests/integration/*.test.ts",
     "test:e2e": "playwright test",
     "db:local": "node --import tsx scripts/local-db.ts",
     "format": "prettier --write src packages apps tests scripts/*.ts prisma/seed.ts playwright.config.ts",

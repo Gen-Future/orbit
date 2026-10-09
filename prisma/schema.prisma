@@ -14,6 +14,8 @@ model User {
   createdAt DateTime @default(now())
   memberships Membership[]
   sessions Session[]
+  reportTemplates ReportTemplate[]
+  authoredReports Report[]
   preferences NotificationPreference[]
   subscriptions PushSubscription[]
   notifications Notification[]
@@ -51,6 +53,7 @@ model Workspace {
   tokens AccessToken[]
   receipts MutationReceipt[]
   reports Report[]
+  reportTemplates ReportTemplate[]
   preferences NotificationPreference[]
   notifications Notification[]
   aiConfig AIConfig?
@@ -102,6 +105,8 @@ model Item {
   deletedAt DateTime?
   events ItemEvent[]
   reminders Reminder[]
+  sourceReportId String?
+  sourceReport Report? @relation(fields: [sourceReportId], references: [id])
   @@index([workspaceId, status, dueAt])
   @@index([workspaceId, occurredAt])
   @@index([workspaceId, deletedAt])
@@ -182,7 +187,45 @@ model Report {
   endAt DateTime
   content String
   sourceIds String[]
+  authorId String?
+  author User? @relation(fields: [authorId], references: [id])
+  templateId String?
+  templateVersion Int?
+  templateSnapshot Json?
+  sourceSnapshot Json?
+  generatedContent String?
+  generationMode String @default("legacy")
+  version Int @default(1)
+  updatedAt DateTime @updatedAt
+  styleSuggestion Json?
+  suggestionStatus String @default("none")
+  suggestionRevision Int?
+  suggestionCheckedRevision Int?
+  planDraft Json?
+  planBatchId String?
+  sourceItems Item[]
   createdAt DateTime @default(now())
+  @@index([workspaceId, startAt])
+}
+model ReportTemplate {
+  id String @id @default(cuid())
+  workspaceId String
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  definition Json
+  version Int @default(1)
+  history Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([workspaceId, userId])
+}
+model CalendarCache {
+  year Int @id
+  days Json
+  papers String[]
+  checksum String
+  syncedAt DateTime @default(now())
 }
 model NotificationPreference {
   id String @id @default(cuid())
