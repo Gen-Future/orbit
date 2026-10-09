@@ -66,6 +66,12 @@ type Drag = {
   target: 'sun' | 'blackhole' | null;
 };
 export type StellarOutcome = { item: NebulaItem; kind: 'complete' | 'delete'; serial: number };
+export type AISignal = {
+  phase: 'listening' | 'resolved';
+  quadrant?: number;
+  title?: string;
+  serial: number;
+};
 type Flight = {
   serial: number;
   kind: 'complete' | 'delete';
@@ -172,6 +178,7 @@ export function NebulaMatrix<T extends NebulaItem>({
   onComplete,
   onDelete,
   outcome,
+  aiSignal,
   reduced,
   onManage,
   menuRef,
@@ -200,6 +207,7 @@ export function NebulaMatrix<T extends NebulaItem>({
   onComplete: (item: T) => Promise<boolean>;
   onDelete: (item: T) => Promise<boolean>;
   outcome: StellarOutcome | null;
+  aiSignal: AISignal | null;
   reduced: boolean;
   onManage: () => void;
   menuRef: RefObject<HTMLButtonElement | null>;
@@ -653,6 +661,36 @@ export function NebulaMatrix<T extends NebulaItem>({
             <div className="nebula-coordinate-grid" aria-hidden="true" />
             <div className="nebula-orbit-ring ring-outer" aria-hidden="true" />
             <div className="nebula-orbit-ring ring-inner" aria-hidden="true" />
+            {aiSignal && (
+              <div
+                key={aiSignal.serial}
+                className={`nebula-ai-signal is-${aiSignal.phase} ${aiSignal.quadrant ? `nebula-ai-q${aiSignal.quadrant}` : ''}`}
+                role="status"
+                aria-live="polite"
+              >
+                <div className="ai-signal-radar" aria-hidden="true">
+                  <span className="ai-signal-orbit orbit-one" />
+                  <span className="ai-signal-orbit orbit-two" />
+                  <span className="ai-signal-beam" />
+                  <span className="ai-signal-core">
+                    <Sparkles size={18} />
+                  </span>
+                  <i className="signal-node node-one" />
+                  <i className="signal-node node-two" />
+                  <i className="signal-node node-three" />
+                </div>
+                <div className="ai-signal-copy">
+                  <strong>
+                    {aiSignal.phase === 'resolved' ? '已找到最佳轨道' : '正在解析你的意图'}
+                  </strong>
+                  <span>
+                    {aiSignal.phase === 'resolved'
+                      ? `${QUADRANTS.find((entry) => entry.id === aiSignal.quadrant)?.title || '待归类'} · ${aiSignal.title || '准备确认'}`
+                      : '读取时间、行动与优先级'}
+                  </span>
+                </div>
+              </div>
+            )}
             <div className="nebula-axis-x" aria-hidden="true">
               <span className="nebula-axis-label axis-low">
                 <strong>不重要</strong>

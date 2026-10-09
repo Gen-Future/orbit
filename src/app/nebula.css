@@ -2441,6 +2441,201 @@
 .nebula-intent > svg {
   opacity: 0.7;
 }
+.nebula-ai-signal {
+  --signal-x: 50%;
+  --signal-y: 50%;
+  --signal-color: #d7ffb8;
+  position: absolute;
+  inset: 0;
+  z-index: 24;
+  pointer-events: none;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 50%, #172e355c 0, #0b101960 25%, transparent 62%);
+  animation: ai-signal-in 260ms ease-out both;
+}
+.nebula-ai-signal.nebula-ai-q1 {
+  --signal-x: 73%;
+  --signal-y: 28%;
+  --signal-color: #ffa88e;
+}
+.nebula-ai-signal.nebula-ai-q2 {
+  --signal-x: 73%;
+  --signal-y: 72%;
+  --signal-color: #d7ff4f;
+}
+.nebula-ai-signal.nebula-ai-q3 {
+  --signal-x: 27%;
+  --signal-y: 28%;
+  --signal-color: #b4a0f3;
+}
+.nebula-ai-signal.nebula-ai-q4 {
+  --signal-x: 27%;
+  --signal-y: 72%;
+  --signal-color: #83dcf0;
+}
+.ai-signal-radar {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 152px;
+  height: 152px;
+  transform: translate(-50%, -50%);
+}
+.nebula-ai-signal.is-resolved .ai-signal-radar {
+  animation: ai-signal-lock 620ms var(--ease) both;
+}
+.ai-signal-orbit,
+.ai-signal-core,
+.ai-signal-beam,
+.ai-signal-radar > i {
+  position: absolute;
+  display: block;
+}
+.ai-signal-orbit {
+  inset: 0;
+  border: 1px solid #87e6e25e;
+  border-radius: 50%;
+  box-shadow: inset 0 0 28px #78d9dc12;
+}
+.ai-signal-orbit::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #bffff6;
+  box-shadow: 0 0 13px #8bfbe9;
+}
+.orbit-one {
+  animation: ai-orbit-spin 2.2s linear infinite;
+}
+.orbit-two {
+  inset: 24px;
+  border-style: dashed;
+  border-color: #cbb9ff66;
+  animation: ai-orbit-spin 1.55s linear infinite reverse;
+}
+.ai-signal-beam {
+  inset: 7px;
+  border-radius: 50%;
+  background: conic-gradient(from 20deg, transparent 0 76%, #99f4db24 88%, #c7fff055 100%);
+  animation: ai-orbit-spin 1.9s linear infinite;
+}
+.ai-signal-core {
+  inset: 49px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #162119;
+  background: #d7ffb8;
+  box-shadow:
+    0 0 22px #a5ffe3a3,
+    0 0 65px #8fe8e45c;
+  animation: ai-core-pulse 1.1s ease-in-out infinite;
+}
+.ai-signal-radar > i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #d8fff8;
+  box-shadow: 0 0 12px #a0fff0;
+  animation: ai-node-blink 900ms ease-in-out infinite alternate;
+}
+.ai-signal-radar .node-one {
+  left: 13px;
+  top: 45px;
+}
+.ai-signal-radar .node-two {
+  right: 12px;
+  top: 76px;
+  animation-delay: -300ms;
+}
+.ai-signal-radar .node-three {
+  left: 72px;
+  bottom: 5px;
+  animation-delay: -600ms;
+}
+.nebula-ai-signal.is-resolved .ai-signal-orbit {
+  border-color: color-mix(in srgb, var(--signal-color) 70%, transparent);
+}
+.nebula-ai-signal.is-resolved .ai-signal-core {
+  color: #10140e;
+  background: var(--signal-color);
+  box-shadow:
+    0 0 26px var(--signal-color),
+    0 0 75px color-mix(in srgb, var(--signal-color) 44%, transparent);
+}
+.ai-signal-copy {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 98px);
+  width: min(320px, calc(100% - 40px));
+  transform: translateX(-50%);
+  display: grid;
+  gap: 3px;
+  text-align: center;
+  text-shadow: 0 2px 12px #000;
+}
+.ai-signal-copy strong {
+  color: #e9fff8;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ai-signal-copy span {
+  overflow: hidden;
+  color: #9fbcb9;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nebula-ai-signal.is-resolved .ai-signal-copy strong {
+  color: var(--signal-color);
+}
+@keyframes ai-signal-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes ai-orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes ai-core-pulse {
+  50% {
+    transform: scale(1.12);
+  }
+}
+@keyframes ai-node-blink {
+  to {
+    opacity: 0.25;
+    transform: scale(0.72);
+  }
+}
+@keyframes ai-signal-lock {
+  0% {
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  62% {
+    left: var(--signal-x);
+    top: var(--signal-y);
+    transform: translate(-50%, -50%) scale(0.62);
+  }
+  82% {
+    left: var(--signal-x);
+    top: var(--signal-y);
+    transform: translate(-50%, -50%) scale(0.82);
+  }
+  100% {
+    left: var(--signal-x);
+    top: var(--signal-y);
+    transform: translate(-50%, -50%) scale(0.7);
+  }
+}
 .nebula-map-controls {
   margin: 0 20px;
   opacity: 0.52;
@@ -2494,6 +2689,19 @@
   .nebula-intent {
     margin-top: 8px;
   }
+  .ai-signal-radar {
+    width: 126px;
+    height: 126px;
+  }
+  .orbit-two {
+    inset: 20px;
+  }
+  .ai-signal-core {
+    inset: 40px;
+  }
+  .ai-signal-copy {
+    top: calc(50% + 78px);
+  }
   .nebula-map-controls {
     margin: 0 8px;
   }
@@ -2501,4 +2709,24 @@
     min-height: 38px;
     padding: 0 8px calc(2px + env(safe-area-inset-bottom));
   }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nebula-ai-signal,
+  .nebula-ai-signal * {
+    animation: none !important;
+  }
+  .nebula-ai-signal.is-resolved .ai-signal-radar {
+    left: var(--signal-x);
+    top: var(--signal-y);
+    transform: translate(-50%, -50%) scale(0.7);
+  }
+}
+.reduced-motion .nebula-ai-signal,
+.reduced-motion .nebula-ai-signal * {
+  animation: none !important;
+}
+.reduced-motion .nebula-ai-signal.is-resolved .ai-signal-radar {
+  left: var(--signal-x);
+  top: var(--signal-y);
+  transform: translate(-50%, -50%) scale(0.7);
 }

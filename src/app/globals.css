@@ -1425,6 +1425,103 @@ nav {
   grid-template-columns: 1fr 1fr;
   gap: 17px;
 }
+.date-time-field {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.date-time-label-row {
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #c8d2bc;
+  font-size: 11px;
+}
+.date-time-clear {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #93a087;
+  font-size: 10px;
+}
+.date-time-clear:hover:not(:disabled) {
+  color: var(--lime);
+}
+.date-time-control {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding-left: 12px;
+  border: 1px solid #3a4034;
+  border-radius: 9px;
+  background: #10140e;
+  color: #9eaf91;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+.date-time-control:focus-within {
+  border-color: var(--lime);
+  background: #131910;
+  box-shadow: 0 0 0 3px #d7ff4f12;
+  color: var(--lime);
+}
+.date-time-control input {
+  min-height: 44px;
+  padding: 10px 11px 10px 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color-scheme: dark;
+}
+.date-time-control input:focus {
+  border: 0;
+}
+.date-time-control input::-webkit-calendar-picker-indicator {
+  opacity: 0.62;
+  cursor: pointer;
+}
+.date-time-quick {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  padding: 4px;
+  border: 1px solid #30382b;
+  border-radius: 9px;
+  background: #141812;
+}
+.date-time-chip {
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #aebaa2;
+  font-size: 10px;
+  transition:
+    color 160ms ease,
+    background 160ms ease,
+    transform 160ms var(--ease);
+}
+.date-time-chip:hover:not(:disabled),
+.date-time-chip:focus-visible {
+  color: #1b220f;
+  background: var(--lime);
+}
+.date-time-chip:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.date-time-note {
+  color: #7f8b75;
+  font-size: 9px;
+  line-height: 1.4;
+}
 .field-note {
   font-size: 10px;
   color: var(--muted);

@@ -46,16 +46,19 @@ import {
   Save,
   Circle,
   Ban,
+  CalendarDays,
 } from 'lucide-react';
 import {
   quadrantNames,
   isPositionOnlyEvent,
   zonedInstant,
   localParts,
+  quickDeadline,
   type CaptureDraft,
+  type QuickDeadline,
 } from '../../packages/core/src';
 import { ReportFoundry } from './report-foundry';
-import { NebulaMatrix, type StellarOutcome } from './nebula-matrix';
+import { NebulaMatrix, type AISignal, type StellarOutcome } from './nebula-matrix';
 import type { SedimentPage, SedimentSummary } from './sediment-belt';
 import type { OrbitPoint } from '../../packages/core/src/orbit-position';
 type Project = { id: string; name: string; description: string; color: string };
@@ -273,6 +276,76 @@ function inputDate(value: string | null, zone: string) {
 function fromInput(value: string, zone: string) {
   return value ? zonedInstant(value.slice(0, 10), value.slice(11, 16), zone) : null;
 }
+function OrbitDateTimeField({
+  label,
+  value,
+  zone,
+  onChange,
+  quick = false,
+  required = false,
+  disabled = false,
+  note,
+}: {
+  label: string;
+  value: string;
+  zone: string;
+  onChange: (value: string) => void;
+  quick?: boolean;
+  required?: boolean;
+  disabled?: boolean;
+  note?: string;
+}) {
+  const quickOptions: { label: string; value: QuickDeadline }[] = [
+    { label: '今天', value: 'today' },
+    { label: '三天', value: 'three-days' },
+    { label: '本周', value: 'this-week' },
+    { label: '本月', value: 'this-month' },
+  ];
+  return (
+    <div className="date-time-field">
+      <div className="date-time-label-row">
+        <span>{label}</span>
+        {value && !required && (
+          <button
+            type="button"
+            className="date-time-clear"
+            onClick={() => onChange('')}
+            disabled={disabled}
+          >
+            清除
+          </button>
+        )}
+      </div>
+      <div className="date-time-control">
+        <CalendarDays size={16} aria-hidden="true" />
+        <input
+          type="datetime-local"
+          aria-label={label}
+          value={value}
+          required={required}
+          onChange={(event) => onChange(event.target.value)}
+          disabled={disabled}
+        />
+      </div>
+      {quick && (
+        <div className="date-time-quick" role="group" aria-label={`${label}快捷选择`}>
+          {quickOptions.map((option) => (
+            <button
+              type="button"
+              key={option.value}
+              className="date-time-chip"
+              onClick={() => onChange(inputDate(quickDeadline(option.value, zone), zone))}
+              disabled={disabled}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {note && <small className="date-time-note">{note}</small>}
+    </div>
+  );
+}
 export default function Orbit() {
   const [user, setUser] = useState<User | null>(null),
     [memberships, setMemberships] = useState<Membership[]>([]),
@@ -302,6 +375,7 @@ export default function Orbit() {
     [error, setError] = useState(''),
     [celebration, setCelebration] = useState<string | null>(null);
   const [stellarOutcome, setStellarOutcome] = useState<StellarOutcome | null>(null);
+  const [aiSignal, setAiSignal] = useState<AISignal | null>(null);
   const [sedimentSummary, setSedimentSummary] = useState<SedimentSummary>(emptySedimentSummary);
   const [undoDeleted, setUndoDeleted] = useState<Item | null>(null);
   const [archiveRows, setArchiveRows] = useState<Item[]>([]),
@@ -679,18 +753,30 @@ export default function Orbit() {
     }
   }
   async function parseIntent(text = intent) {
-    if (!text.trim()) return;
-    await run('capture', async () => {
-      const result = await api<{ draft: CaptureDraft; mode: string; message: string }>(
-        `${prefix}/ai`,
-        'POST',
-        { text },
-      );
-      setDraft(result.draft);
-      setDraftMode(result.mode);
-      setDraftFor(null);
-      if (result.mode !== 'ai') notify(result.message);
-    });
+    if (!text.trim() || busy) return;
+    setAiSignal({ phase: 'listening', serial: Date.now() });
+    try {
+      await run('capture', async () => {
+        const result = await api<{ draft: CaptureDraft; mode: string; message: string }>(
+          `${prefix}/ai`,
+          'POST',
+          { text },
+        );
+        setAiSignal({
+          phase: 'resolved',
+          quadrant: result.draft.quadrant,
+          title: result.draft.title,
+          serial: Date.now(),
+        });
+        await new Promise((resolve) => window.setTimeout(resolve, reduced ? 120 : 640));
+        setDraft(result.draft);
+        setDraftMode(result.mode);
+        setDraftFor(null);
+        if (result.mode !== 'ai') notify(result.message);
+      });
+    } finally {
+      setAiSignal(null);
+    }
   }
   async function saveDraft(value: CaptureDraft) {
     await run('save-draft', async () => {
@@ -1351,6 +1437,7 @@ export default function Orbit() {
                     onComplete={(item) => patch(item, { status: 'done' })}
                     onDelete={deleteItem}
                     outcome={stellarOutcome}
+                    aiSignal={aiSignal}
                     reduced={reduced}
                     onManage={() => setMobileNav(true)}
                     menuRef={menuRef}
@@ -2039,22 +2126,20 @@ function DraftPanel({
               ))}
             </select>
           </label>
-          <label>
-            截止时间
-            <input
-              type="datetime-local"
-              value={inputDate(value.dueAt || null, zone)}
-              onChange={(e) => setValue({ ...value, dueAt: fromInput(e.target.value, zone) })}
-            />
-          </label>
-          <label>
-            提醒时间
-            <input
-              type="datetime-local"
-              value={inputDate(value.reminderAt || null, zone)}
-              onChange={(e) => setValue({ ...value, reminderAt: fromInput(e.target.value, zone) })}
-            />
-          </label>
+          <OrbitDateTimeField
+            label="截止时间"
+            value={inputDate(value.dueAt || null, zone)}
+            zone={zone}
+            quick
+            note="快捷时间默认设为 18:00"
+            onChange={(next) => setValue({ ...value, dueAt: fromInput(next, zone) })}
+          />
+          <OrbitDateTimeField
+            label="提醒时间"
+            value={inputDate(value.reminderAt || null, zone)}
+            zone={zone}
+            onChange={(next) => setValue({ ...value, reminderAt: fromInput(next, zone) })}
+          />
         </div>
         <p className="field-note">时间按工作空间时区 {zone} 保存。</p>
         <label>
@@ -2251,34 +2336,30 @@ function DetailPanel({
                 ))}
               </select>
             </label>
-            <label>
-              发生时间
-              <input
-                required
-                type="datetime-local"
-                value={occurredAt}
-                onChange={(e) => setOccurredAt(e.target.value)}
-                disabled={!writable || Boolean(item.deletedAt)}
-              />
-            </label>
-            <label>
-              截止时间
-              <input
-                type="datetime-local"
-                value={dueAt}
-                onChange={(e) => setDueAt(e.target.value)}
-                disabled={!writable || Boolean(item.deletedAt)}
-              />
-            </label>
-            <label>
-              提醒时间
-              <input
-                type="datetime-local"
-                value={reminderAt}
-                onChange={(e) => setReminderAt(e.target.value)}
-                disabled={!writable || Boolean(item.deletedAt)}
-              />
-            </label>
+            <OrbitDateTimeField
+              label="发生时间"
+              value={occurredAt}
+              zone={zone}
+              required
+              disabled={!writable || Boolean(item.deletedAt)}
+              onChange={setOccurredAt}
+            />
+            <OrbitDateTimeField
+              label="截止时间"
+              value={dueAt}
+              zone={zone}
+              quick
+              note="快捷时间默认设为 18:00"
+              disabled={!writable || Boolean(item.deletedAt)}
+              onChange={setDueAt}
+            />
+            <OrbitDateTimeField
+              label="提醒时间"
+              value={reminderAt}
+              zone={zone}
+              disabled={!writable || Boolean(item.deletedAt)}
+              onChange={setReminderAt}
+            />
           </div>
         </details>
         <div className="panel-actions">

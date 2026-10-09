@@ -270,6 +270,35 @@ export function zonedInstant(day: string, time: string, zone: string) {
     throw new Error('该本地时间不存在，请选择其他时间');
   return new Date(guess).toISOString();
 }
+export type QuickDeadline = 'today' | 'three-days' | 'this-week' | 'this-month';
+export function quickDeadline(kind: QuickDeadline, zone: string, now = new Date()) {
+  const local = localParts(now, zone);
+  const year = Number(local.year);
+  const month = Number(local.month);
+  const date = Number(local.day);
+  const hour = Number(local.hour);
+  let target = new Date(Date.UTC(year, month - 1, date));
+  let targetHour = 18;
+  if (kind === 'today') {
+    targetHour = hour >= 18 ? Math.min(23, hour + 1) : 18;
+  } else if (kind === 'three-days') {
+    target.setUTCDate(target.getUTCDate() + 3);
+  } else if (kind === 'this-week') {
+    const weekday = target.getUTCDay();
+    let daysUntilFriday = (5 - weekday + 7) % 7;
+    if (daysUntilFriday === 0 && hour >= 18) daysUntilFriday = 7;
+    target.setUTCDate(target.getUTCDate() + daysUntilFriday);
+  } else {
+    target = new Date(Date.UTC(year, month, 0));
+    if (target.getUTCDate() === date && hour >= 18) targetHour = Math.min(23, hour + 1);
+  }
+  const day = [
+    target.getUTCFullYear(),
+    String(target.getUTCMonth() + 1).padStart(2, '0'),
+    String(target.getUTCDate()).padStart(2, '0'),
+  ].join('-');
+  return zonedInstant(day, `${String(targetHour).padStart(2, '0')}:00`, zone);
+}
 export function simpleDraft(text: string, zone: string, now = new Date()): CaptureDraft {
   const title = text
     .trim()

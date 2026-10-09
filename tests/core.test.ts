@@ -11,6 +11,7 @@ import {
   isPositionOnlyEvent,
   isSedimentItem,
   sedimentAfterMs,
+  quickDeadline,
 } from '../packages/core/src';
 import { passwordHash, verifyPassword, encrypt, decrypt } from '../src/lib/security';
 test('角色矩阵：viewer 只读，未知角色拒绝', () => {
@@ -31,6 +32,13 @@ test('时区转换跨日与夏令时', () => {
   assert.equal(zonedInstant('2026-01-01', '00:30', 'Asia/Shanghai'), '2025-12-31T16:30:00.000Z');
   assert.equal(zonedInstant('2026-07-01', '09:00', 'America/New_York'), '2026-07-01T13:00:00.000Z');
   assert.throws(() => zonedInstant('2026-03-08', '02:30', 'America/New_York'));
+});
+test('快捷截止时间按工作空间日历计算', () => {
+  const now = new Date('2026-10-08T11:30:00.000Z'); // 上海周四 19:30
+  assert.equal(quickDeadline('today', 'Asia/Shanghai', now), '2026-10-08T12:00:00.000Z');
+  assert.equal(quickDeadline('three-days', 'Asia/Shanghai', now), '2026-10-11T10:00:00.000Z');
+  assert.equal(quickDeadline('this-week', 'Asia/Shanghai', now), '2026-10-09T10:00:00.000Z');
+  assert.equal(quickDeadline('this-month', 'Asia/Shanghai', now), '2026-10-31T10:00:00.000Z');
 });
 test('规则捕捉不捏造日期，识别用户时区的明天下午', () => {
   const plain = simpleDraft('准备产品方案', 'Asia/Shanghai', new Date('2026-09-29T20:00:00Z'));
