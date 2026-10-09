@@ -12,6 +12,7 @@ import {
   isSedimentItem,
   sedimentAfterMs,
   quickDeadline,
+  isInboxItem,
 } from '../packages/core/src';
 import { passwordHash, verifyPassword, encrypt, decrypt } from '../src/lib/security';
 test('角色矩阵：viewer 只读，未知角色拒绝', () => {
@@ -55,6 +56,11 @@ test('输入拒绝无时区日期、未知字段和过多子事项', () => {
   assert.equal(itemInput.safeParse({ title: 'a', dueAt: '2026-09-29T12:00:00' }).success, false);
   assert.equal(itemInput.safeParse({ title: 'a', workspaceId: 'foreign' }).success, false);
   assert.equal(itemPatch.safeParse({ title: 'a' }).success, false);
+  assert.equal(itemInput.safeParse({ title: 'a', quadrant: 0 }).success, false);
+  assert.equal(
+    itemInput.safeParse({ title: 'a', quadrant: 2, triageStatus: 'pending' }).success,
+    true,
+  );
   assert.equal(
     draftSchema.safeParse({ title: 'a', subtasks: Array(13).fill('step') }).success,
     false,
@@ -117,8 +123,22 @@ test('时间沉积带在逾期满七天时收纳全部未完成事项', () => {
   assert.equal(isSedimentItem({ ...item, status: 'done' }, now), false);
   assert.equal(isSedimentItem({ ...item, status: 'cancelled' }, now), false);
   assert.equal(isSedimentItem({ ...item, dueAt: null }, now), false);
-  assert.equal(isSedimentItem({ ...item, quadrant: 0 }, now), false);
+  assert.equal(isSedimentItem({ ...item, triageStatus: 'pending' }, now), false);
   assert.equal(isSedimentItem({ ...item, archivedAt: new Date(now).toISOString() }, now), false);
+});
+
+test('收件箱只统计仍需整理的有效事项', () => {
+  const item = {
+    triageStatus: 'pending',
+    status: 'open',
+    archivedAt: null,
+    deletedAt: null,
+  };
+  assert.equal(isInboxItem(item), true);
+  assert.equal(isInboxItem({ ...item, status: 'done' }), false);
+  assert.equal(isInboxItem({ ...item, triageStatus: 'triaged' }), false);
+  assert.equal(isInboxItem({ ...item, archivedAt: new Date() }), false);
+  assert.equal(isInboxItem({ ...item, deletedAt: new Date() }), false);
 });
 
 test('中文时间与四象限否定含义', () => {
@@ -129,6 +149,8 @@ test('中文时间与四象限否定含义', () => {
   );
   assert.equal(result.dueAt, '2026-09-30T07:00:00.000Z');
   assert.equal(result.quadrant, 2);
+  assert.equal(result.triageStatus, 'triaged');
   assert.equal(simpleDraft('紧急但不重要', 'Asia/Shanghai').quadrant, 3);
   assert.equal(simpleDraft('不重要也不紧急', 'Asia/Shanghai').quadrant, 4);
+  assert.equal(simpleDraft('记下一个想法', 'Asia/Shanghai').triageStatus, 'pending');
 });

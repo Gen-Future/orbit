@@ -11,6 +11,7 @@ Use the user's configured `ORBIT_URL`, `ORBIT_WORKSPACE_ID`, and `ORBIT_TOKEN`. 
 
 - `GET /skills` returns versioned manifests and required scopes.
 - `GET /projects` returns valid project IDs. Never guess cross-workspace IDs.
+- Product model: inbox means `triageStatus=pending`; quadrants 1–4 only express attention order; projects express goals; `status` expresses execution progress.
 - `GET /items?q=keyword&all=true&page=1&limit=100` queries items, including archived when `all=true`. Response: `{items,total,page,limit}`. Paginate until the requested range is covered.
 - `GET /items/:id` returns the latest version, children, pending reminders and events.
 - `GET /items/sediment?page=1&limit=50` returns unfinished Q1-Q4 items overdue by at least 168 hours plus global quadrant counts. Use `q` or `quadrant=1..4` to narrow the page.
@@ -22,9 +23,10 @@ The user's instruction to record or update an item authorizes that requested ope
 
 All item/project/report writes require a fresh `Idempotency-Key` (UUID). Reuse the SAME key and body when retrying an interrupted request. Never reuse a key for changed content. Retry a transient failure at most twice; report unresolved outcomes without creating another item.
 
-- `POST /items` body: `{title,notes?,quadrant?,projectId?,parentId?,dueAt?,occurredAt?,reminderAt?}`.
+- `POST /items` body: `{title,notes?,quadrant?,triageStatus?,projectId?,parentId?,dueAt?,occurredAt?,reminderAt?}`. Omit both `quadrant` and `triageStatus` to capture into the inbox. Supplying a quadrant without `triageStatus` remains backward-compatible and creates a triaged item.
 - `POST /ai` body: `{text,skillId:"capture-item"}`. Returns `{draft,mode,message}`. `mode: rules` is a rule-based fallback, not AI output.
-- `POST /capture` confirms a draft: `{title,notes,quadrant,projectId?,dueAt?,reminderAt?,subtasks:[],source:"ai"|"rules"|"manual"}`.
+- `POST /capture` confirms a draft: `{title,notes,quadrant,triageStatus,projectId?,dueAt?,reminderAt?,subtasks:[],source:"ai"|"rules"|"manual"}`.
+- `PATCH /projects/:id` edits `{version,name?,description?,color?,archived?}`. `DELETE /projects/:id` soft-deletes an empty project and requires `{version}`.
 - `PATCH /items/:id` includes the latest `version` and only fields being changed. Complete with `{version,status:"done"}`. Archive with `{version,archived:true}`; history is preserved.
 - `POST /items/bulk-reschedule` atomically updates 1-100 sediment items: `{items:[{id,version}],dueAt}`. The new dueAt must be in the future; a stale item makes the whole request fail.
 - `POST /items/:id/snooze` body: `{minutes:60}`.

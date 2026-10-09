@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { localParts, zonedInstant, isPositionOnlyEvent } from './index';
+import { localParts, zonedInstant, isPositionOnlyEvent, triageStatuses } from './index';
 export function dateInZone(date: Date, zone: string) {
   const p = localParts(date, zone);
   return `${p.year}-${p.month}-${p.day}`;
@@ -121,7 +121,8 @@ export type ReportContext = ReturnType<typeof reportWeek> & {
 export const reportPlanSchema = z.object({
   title: z.string().min(1).max(300),
   notes: z.string().max(10000).default(''),
-  quadrant: z.number().int().min(0).max(4).default(2),
+  quadrant: z.number().int().min(1).max(4).default(2),
+  triageStatus: z.enum(triageStatuses).default('triaged'),
   dueAt: z.string().datetime({ offset: true }).nullable().default(null),
 });
 export type ReportPlan = z.infer<typeof reportPlanSchema>;

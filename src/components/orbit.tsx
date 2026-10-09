@@ -16,6 +16,7 @@ import {
   Search,
   Check,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   X,
   Sparkles,
@@ -53,6 +54,7 @@ import {
   isPositionOnlyEvent,
   zonedInstant,
   localParts,
+  isInboxItem,
   quickDeadline,
   type CaptureDraft,
   type QuickDeadline,
@@ -61,12 +63,23 @@ import { ReportFoundry } from './report-foundry';
 import { NebulaMatrix, type AISignal, type StellarOutcome } from './nebula-matrix';
 import type { SedimentPage, SedimentSummary } from './sediment-belt';
 import type { OrbitPoint } from '../../packages/core/src/orbit-position';
-type Project = { id: string; name: string; description: string; color: string };
+type Project = {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt: string | null;
+  deletedAt: string | null;
+};
 type Item = {
   id: string;
   title: string;
   notes: string;
   quadrant: number;
+  triageStatus: 'pending' | 'triaged';
   status: string;
   version: number;
   projectId: string | null;
@@ -209,6 +222,10 @@ const eventsLabel: Record<string, string> = {
   undeleted: '恢复了已删除事项',
   snoozed: '稍后提醒',
   'project.created': '创建项目',
+  'project.updated': '更新项目',
+  'project.archived': '归档项目',
+  'project.restored': '恢复项目',
+  'project.deleted': '删除项目',
   'report.created': '生成周报',
   'report.updated': '编辑周报',
   'member.added': '加入空间',
@@ -353,6 +370,7 @@ export default function Orbit() {
     [ready, setReady] = useState(false),
     [bootError, setBootError] = useState('');
   const [reportTarget, setReportTarget] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('matrix'),
     [items, setItems] = useState<Item[]>([]),
     [projects, setProjects] = useState<Project[]>([]),
@@ -374,6 +392,7 @@ export default function Orbit() {
     [toast, setToast] = useState(''),
     [error, setError] = useState(''),
     [celebration, setCelebration] = useState<string | null>(null);
+  const [loadedWorkspace, setLoadedWorkspace] = useState('');
   const [stellarOutcome, setStellarOutcome] = useState<StellarOutcome | null>(null);
   const [aiSignal, setAiSignal] = useState<AISignal | null>(null);
   const [sedimentSummary, setSedimentSummary] = useState<SedimentSummary>(emptySedimentSummary);
@@ -389,7 +408,7 @@ export default function Orbit() {
     [matrixImmersive, setMatrixImmersive] = useState(false),
     [now, setNow] = useState<Date | null>(null),
     [reduced, setReduced] = useState(false),
-    [dataLoading, setDataLoading] = useState(false);
+    [dataLoading, setDataLoading] = useState(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const menuRef = useRef<HTMLButtonElement>(null);
@@ -435,7 +454,7 @@ export default function Orbit() {
     try {
       const [rows, ps, es, rs, ns, cs, sediment] = await Promise.all([
         api<{ items: Item[]; total: number }>(`workspaces/${wid}/items?limit=1000`),
-        api<Project[]>(`workspaces/${wid}/projects`),
+        api<Project[]>(`workspaces/${wid}/projects?includeArchived=true`),
         api<Event[]>(`workspaces/${wid}/events`),
         api<Report[]>(`workspaces/${wid}/reports`),
         api<Notification[]>(`workspaces/${wid}/notifications`),
@@ -444,6 +463,7 @@ export default function Orbit() {
       ]);
       if (generation !== requestGeneration.current) return;
       setItems(rows.items);
+      setLoadedWorkspace(wid);
       setProjects(ps);
       setEvents(es);
       setReports(rs);
@@ -502,6 +522,7 @@ export default function Orbit() {
       setStellarOutcome(null);
       setDraft(null);
       setProjectFilter('');
+      setSelectedProjectId(null);
       setItems([]);
       setProjects([]);
       setEvents([]);
@@ -569,7 +590,13 @@ export default function Orbit() {
         e.preventDefault();
         if (tab === 'today') inputRef.current?.focus();
         else if (writable) {
-          setDraft({ title: '', notes: '', quadrant: 0, subtasks: [] });
+          setDraft({
+            title: '',
+            notes: '',
+            quadrant: 2,
+            triageStatus: 'pending',
+            subtasks: [],
+          });
           setDraftFor(null);
           setDraftMode('manual');
         }
@@ -718,6 +745,30 @@ export default function Orbit() {
       setArchiveFilter('active');
     });
   }
+  async function updateProject(project: Project, changes: Record<string, unknown>) {
+    await run(`project:${project.id}`, async () => {
+      await api(`${prefix}/projects/${project.id}`, 'PATCH', {
+        version: project.version,
+        ...changes,
+      });
+      await refresh();
+      notify(
+        changes.archived === true
+          ? '项目已归档。'
+          : changes.archived === false
+            ? '项目已恢复。'
+            : '项目已更新。',
+      );
+    });
+  }
+  async function deleteProject(project: Project) {
+    await run(`project:${project.id}:delete`, async () => {
+      await api(`${prefix}/projects/${project.id}`, 'DELETE', { version: project.version });
+      setSelectedProjectId(null);
+      await refresh();
+      notify('项目已删除，历史事件仍会保留。');
+    });
+  }
   async function moveItem(item: Item, point: OrbitPoint): Promise<boolean> {
     try {
       const updated = await api<Item>(`${prefix}/items/${item.id}`, 'PATCH', {
@@ -795,17 +846,21 @@ export default function Orbit() {
   }
   const active = useMemo(() => items.filter((x) => !x.archivedAt && x.status !== 'done'), [items]);
   const roots = active.filter((x) => !x.parentId);
+  const inbox = roots.filter(isInboxItem);
+  const activeProjects = projects.filter((project) => !project.archivedAt && !project.deletedAt);
   const done = items.filter((x) => x.status === 'done' && !x.archivedAt);
   const todayString = now ? inputDate(now.toISOString(), zone).slice(0, 10) : '';
   const todayDone = done.filter(
     (x) => x.completedAt && inputDate(x.completedAt, zone).slice(0, 10) === todayString,
   );
-  const focus = [...roots].sort(
-    (a, b) =>
-      (a.quadrant === 1 ? -2 : a.quadrant === 2 ? -1 : 1) -
-        (b.quadrant === 1 ? -2 : b.quadrant === 2 ? -1 : 1) ||
-      (a.dueAt ? Date.parse(a.dueAt) : Infinity) - (b.dueAt ? Date.parse(b.dueAt) : Infinity),
-  );
+  const focus = roots
+    .filter((item) => item.triageStatus === 'triaged')
+    .sort(
+      (a, b) =>
+        (a.quadrant === 1 ? -2 : a.quadrant === 2 ? -1 : 1) -
+          (b.quadrant === 1 ? -2 : b.quadrant === 2 ? -1 : 1) ||
+        (a.dueAt ? Date.parse(a.dueAt) : Infinity) - (b.dueAt ? Date.parse(b.dueAt) : Infinity),
+    );
   const overdue = active.filter((x) => x.dueAt && now && Date.parse(x.dueAt) < now.getTime()),
     forgotten = active.filter((x) => now && now.getTime() - Date.parse(x.updatedAt) > 7 * 864e5);
   const filtered = items.filter(
@@ -857,7 +912,11 @@ export default function Orbit() {
           {item.status === 'blocked' && <span className="blocked-label">阻塞中</span>}
         </span>
       </button>
-      <span className={`q-dot q${item.quadrant}`} title={quadrantNames[item.quadrant]} />
+      {item.triageStatus === 'pending' ? (
+        <span className="triage-badge">待整理</span>
+      ) : (
+        <span className={`q-dot q${item.quadrant}`} title={quadrantNames[item.quadrant]} />
+      )}
       <button
         className="icon-button row-arrow"
         aria-label={`查看 ${item.title}`}
@@ -955,8 +1014,8 @@ export default function Orbit() {
             >
               <Icon size={18} />
               <span>{label}</span>
-              {id === 'inbox' && roots.filter((x) => x.quadrant === 0).length > 0 && (
-                <span className="nav-count">{roots.filter((x) => x.quadrant === 0).length}</span>
+              {id === 'inbox' && inbox.length > 0 && (
+                <span className="nav-count">{inbox.length}</span>
               )}
               {tab === id && <span className="nav-active-dot" />}
             </button>
@@ -1115,7 +1174,13 @@ export default function Orbit() {
                       className="text-button"
                       disabled={!writable || Boolean(busy)}
                       onClick={() => {
-                        setDraft({ title: intent, notes: '', quadrant: 0, subtasks: [] });
+                        setDraft({
+                          title: intent,
+                          notes: '',
+                          quadrant: 2,
+                          triageStatus: 'pending',
+                          subtasks: [],
+                        });
                         setDraftFor(null);
                         setDraftMode('manual');
                       }}
@@ -1214,7 +1279,13 @@ export default function Orbit() {
                       className="add-inline"
                       disabled={!writable}
                       onClick={() => {
-                        setDraft({ title: '', notes: '', quadrant: 2, subtasks: [] });
+                        setDraft({
+                          title: '',
+                          notes: '',
+                          quadrant: 2,
+                          triageStatus: 'triaged',
+                          subtasks: [],
+                        });
                         setDraftFor(null);
                         setDraftMode('manual');
                       }}
@@ -1249,7 +1320,10 @@ export default function Orbit() {
                           {['', '立即行动', '留给重要的事', '及时响应', '给自己留白'][q]}
                         </span>
                         <strong>
-                          {roots.filter((x) => x.quadrant === q).length}
+                          {
+                            roots.filter((x) => x.triageStatus === 'triaged' && x.quadrant === q)
+                              .length
+                          }
                           <span>件</span>
                         </strong>
                       </button>
@@ -1308,57 +1382,64 @@ export default function Orbit() {
           )}
           {tab !== 'today' && (
             <>
-              {!['matrix', 'reports'].includes(tab) && (
-                <div className="page-heading">
-                  <div>
-                    <h1>
-                      {
-                        (
-                          {
-                            matrix: '注意力，有自己的坐标。',
-                            inbox: '先记下来，再理清楚。',
-                            projects: '让小事，连成大事。',
-                            timeline: '每一步，都算数。',
-                            reports: '这一周，值得被看见。',
-                            settings: '你的 Orbit，你来定义。',
-                            admin: '让整个 Orbit，稳定运行。',
-                          } as Record<string, string>
-                        )[tab]
-                      }
-                    </h1>
-                    <p>
-                      {
-                        (
-                          {
-                            matrix: '四象限是一副镜片，帮你看见真正重要的事。',
-                            inbox: '一个安心接住所有想法的地方。',
-                            projects: '把事项放进项目，让每次推进都有方向。',
-                            timeline: '事项会完成，行动的记录会留下。',
-                            reports: '从真实工作记录出发，每一项成果都有来源。',
-                            settings: '模型、成员、提醒和开放接口，都在这里。',
-                            admin: '统一管理 AI 接入，掌握系统运行与使用概况。',
-                          } as Record<string, string>
-                        )[tab]
-                      }
-                    </p>
+              {!['matrix', 'reports'].includes(tab) &&
+                !(tab === 'projects' && selectedProjectId) && (
+                  <div className="page-heading">
+                    <div>
+                      <h1>
+                        {
+                          (
+                            {
+                              matrix: '注意力，有自己的坐标。',
+                              inbox: '先记下来，再理清楚。',
+                              projects: '让小事，连成大事。',
+                              timeline: '每一步，都算数。',
+                              reports: '这一周，值得被看见。',
+                              settings: '你的 Orbit，你来定义。',
+                              admin: '让整个 Orbit，稳定运行。',
+                            } as Record<string, string>
+                          )[tab]
+                        }
+                      </h1>
+                      <p>
+                        {
+                          (
+                            {
+                              matrix: '四象限是一副镜片，帮你看见真正重要的事。',
+                              inbox: '一个安心接住所有想法的地方。',
+                              projects: '把事项放进项目，让每次推进都有方向。',
+                              timeline: '事项会完成，行动的记录会留下。',
+                              reports: '从真实工作记录出发，每一项成果都有来源。',
+                              settings: '模型、成员、提醒和开放接口，都在这里。',
+                              admin: '统一管理 AI 接入，掌握系统运行与使用概况。',
+                            } as Record<string, string>
+                          )[tab]
+                        }
+                      </p>
+                    </div>
+                    {!['settings', 'reports', 'timeline', 'admin', 'projects'].includes(tab) && (
+                      <button
+                        className="primary-button"
+                        disabled={!writable}
+                        onClick={() => {
+                          setDraft({
+                            title: '',
+                            notes: '',
+                            quadrant: 2,
+                            triageStatus: 'pending',
+                            subtasks: [],
+                          });
+                          setDraftFor(null);
+                          setDraftMode('manual');
+                        }}
+                      >
+                        <Plus size={17} />
+                        记录事项
+                      </button>
+                    )}
                   </div>
-                  {!['settings', 'reports', 'timeline', 'admin'].includes(tab) && (
-                    <button
-                      className="primary-button"
-                      disabled={!writable}
-                      onClick={() => {
-                        setDraft({ title: '', notes: '', quadrant: 0, subtasks: [] });
-                        setDraftFor(null);
-                        setDraftMode('manual');
-                      }}
-                    >
-                      <Plus size={17} />
-                      记录事项
-                    </button>
-                  )}
-                </div>
-              )}
-              {['inbox', 'projects', 'timeline'].includes(tab) && (
+                )}
+              {['inbox', 'timeline'].includes(tab) && (
                 <div className="filter-bar">
                   <div className="search-field">
                     <Search size={16} />
@@ -1426,11 +1507,12 @@ export default function Orbit() {
                   <NebulaMatrix
                     key={wid}
                     items={items.filter((item) => !item.parentId && !item.archivedAt)}
+                    loading={dataLoading || loadedWorkspace !== wid}
                     now={now}
                     writable={writable}
                     busy={Boolean(busy)}
                     zone={zone}
-                    projects={projects}
+                    projects={activeProjects}
                     immersive={matrixImmersive}
                     onImmersive={() => setMatrixImmersive((value) => !value)}
                     onMove={moveItem}
@@ -1449,7 +1531,13 @@ export default function Orbit() {
                     onCapture={() => parseIntent()}
                     onSelect={setSelected}
                     onAdd={(quadrant) => {
-                      setDraft({ title: '', notes: '', quadrant, subtasks: [] });
+                      setDraft({
+                        title: '',
+                        notes: '',
+                        quadrant,
+                        triageStatus: 'triaged',
+                        subtasks: [],
+                      });
                       setDraftFor(null);
                       setDraftMode('manual');
                     }}
@@ -1461,86 +1549,65 @@ export default function Orbit() {
                 </>
               )}
               {tab === 'inbox' && (
-                <section className="list-surface">
-                  {filtered.filter((x) => x.quadrant === 0).map((x) => taskRow(x))}
-                  {!filtered.some((x) => x.quadrant === 0) && (
-                    <Empty
-                      icon={<Inbox />}
-                      title="脑海腾空，灵感随时来。"
-                      text="尚未分类的事项会出现在这里。"
-                    />
-                  )}
-                </section>
+                <>
+                  <div className="workflow-model" aria-label="Orbit 工作模型">
+                    <span>
+                      <strong>收件箱</strong>暂存、等待整理
+                    </span>
+                    <span>
+                      <strong>四象限</strong>决定注意力顺序
+                    </span>
+                    <span>
+                      <strong>项目</strong>表达事项所属目标
+                    </span>
+                    <span>
+                      <strong>状态</strong>记录推进阶段
+                    </span>
+                  </div>
+                  <section className="list-surface inbox-surface">
+                    {filtered.filter(isInboxItem).map((x) => taskRow(x))}
+                    {!filtered.some(isInboxItem) && (
+                      <Empty
+                        icon={<Inbox />}
+                        title="收件箱已清空。"
+                        text="新想法可以先暂存，整理后再进入四象限。"
+                      />
+                    )}
+                  </section>
+                </>
               )}
               {tab === 'projects' && (
-                <>
-                  <ProjectCreator
-                    onCreate={(input) =>
-                      run('project', async () => {
-                        await api(`${prefix}/projects`, 'POST', input);
-                        await refresh();
-                        notify('项目已创建。');
-                      })
-                    }
-                    disabled={!writable || Boolean(busy)}
-                  />
-                  <div className="projects-grid">
-                    {projects
-                      .filter((p) => !projectFilter || p.id === projectFilter)
-                      .map((p) => {
-                        const ps = filtered.filter((x) => x.projectId === p.id);
-                        const complete = ps.filter((x) => x.status === 'done').length;
-                        return (
-                          <section className="project-panel" key={p.id}>
-                            <header>
-                              <span className="project-symbol" style={{ color: p.color }}>
-                                <Layers size={25} />
-                              </span>
-                              <span className="mono">
-                                {complete} / {ps.length}
-                              </span>
-                            </header>
-                            <h2>{p.name}</h2>
-                            <p>{p.description || '每个小行动，都在让这个项目向前。'}</p>
-                            <div className="project-progress">
-                              <span
-                                style={{
-                                  transform: `scaleX(${ps.length ? complete / ps.length : 0})`,
-                                  background: p.color,
-                                }}
-                              />
-                            </div>
-                            <div>{ps.slice(0, 8).map((x) => taskRow(x, true))}</div>
-                            <button
-                              className="add-inline"
-                              disabled={!writable}
-                              onClick={() => {
-                                setDraft({
-                                  title: '',
-                                  notes: '',
-                                  quadrant: 2,
-                                  projectId: p.id,
-                                  subtasks: [],
-                                });
-                                setDraftFor(null);
-                                setDraftMode('manual');
-                              }}
-                            >
-                              <Plus size={15} />
-                              添加项目事项
-                            </button>
-                          </section>
-                        );
-                      })}
-                  </div>
-                  {!projects.length && (
-                    <Empty
-                      icon={<Layers />}
-                      title="为接下来的旅程命名。"
-                      text="创建第一个项目，让目标和行动连接起来。"
-                    />
-                  )}
-                </>
+                <ProjectWorkspace
+                  projects={projects}
+                  items={items}
+                  selectedId={selectedProjectId}
+                  writable={writable}
+                  busy={Boolean(busy)}
+                  onSelect={setSelectedProjectId}
+                  onCreate={(input) =>
+                    run('project', async () => {
+                      const project = await api<Project>(`${prefix}/projects`, 'POST', input);
+                      await refresh();
+                      setSelectedProjectId(project.id);
+                      notify('项目已创建。');
+                    })
+                  }
+                  onUpdate={updateProject}
+                  onDelete={deleteProject}
+                  onOpenItem={setSelected}
+                  onAddItem={(project) => {
+                    setDraft({
+                      title: '',
+                      notes: '',
+                      quadrant: 2,
+                      triageStatus: 'pending',
+                      projectId: project.id,
+                      subtasks: [],
+                    });
+                    setDraftFor(null);
+                    setDraftMode('manual');
+                  }}
+                />
               )}
               {tab === 'timeline' && (
                 <>
@@ -1667,7 +1734,13 @@ export default function Orbit() {
             className={`floating-capture ${tab === 'today' ? 'mobile-capture' : ''}`}
             aria-label="快速记录事项"
             onClick={() => {
-              setDraft({ title: '', notes: '', quadrant: 0, subtasks: [] });
+              setDraft({
+                title: '',
+                notes: '',
+                quadrant: 2,
+                triageStatus: 'pending',
+                subtasks: [],
+              });
               setDraftFor(null);
               setDraftMode('manual');
             }}
@@ -1683,7 +1756,7 @@ export default function Orbit() {
           initial={draft}
           mode={draftMode}
           editing={Boolean(draftFor)}
-          projects={projects}
+          projects={activeProjects}
           zone={zone}
           busy={Boolean(busy)}
           onClose={() => setDraft(null)}
@@ -1694,7 +1767,9 @@ export default function Orbit() {
         <DetailPanel
           key={`${selected.id}:${selected.version}`}
           item={selected}
-          projects={projects}
+          projects={projects.filter(
+            (project) => !project.archivedAt || project.id === selected.projectId,
+          )}
           items={items}
           zone={zone}
           events={selectedEvents}
@@ -2103,13 +2178,28 @@ function DraftPanel({
             <select
               value={value.quadrant}
               onChange={(e) => setValue({ ...value, quadrant: Number(e.target.value) })}
+              disabled={value.triageStatus === 'pending'}
             >
-              {quadrantNames.map((name, i) => (
-                <option key={name} value={i}>
-                  {i ? `Q${i} · ` : ''}
-                  {name}
+              {quadrantNames.slice(1).map((name, index) => (
+                <option key={name} value={index + 1}>
+                  Q{index + 1} · {name}
                 </option>
               ))}
+            </select>
+          </label>
+          <label>
+            整理状态
+            <select
+              value={value.triageStatus}
+              onChange={(e) =>
+                setValue({
+                  ...value,
+                  triageStatus: e.target.value as CaptureDraft['triageStatus'],
+                })
+              }
+            >
+              <option value="pending">待整理 · 先放进收件箱</option>
+              <option value="triaged">已整理 · 进入星图</option>
             </select>
           </label>
           <label>
@@ -2200,6 +2290,7 @@ function DetailPanel({
   const [title, setTitle] = useState(item.title),
     [notes, setNotes] = useState(item.notes),
     [quadrant, setQuadrant] = useState(item.quadrant),
+    [triageStatus, setTriageStatus] = useState(item.triageStatus),
     [projectId, setProjectId] = useState(item.projectId || ''),
     [confirmDelete, setConfirmDelete] = useState(false),
     [dueAt, setDueAt] = useState(inputDate(item.dueAt, zone)),
@@ -2273,6 +2364,7 @@ function DetailPanel({
             title,
             notes,
             quadrant,
+            triageStatus,
             projectId: projectId || null,
             dueAt: fromInput(dueAt, zone),
             occurredAt: fromInput(occurredAt, zone),
@@ -2302,20 +2394,31 @@ function DetailPanel({
           <summary>
             <span>分类与时间</span>
             <small>
-              {quadrantNames[quadrant]} ·{' '}
+              {triageStatus === 'pending' ? '待整理' : quadrantNames[quadrant]} ·{' '}
               {projects.find((project) => project.id === projectId)?.name || '独立事项'}
             </small>
           </summary>
           <div className="form-grid">
             <label>
+              整理状态
+              <select
+                value={triageStatus}
+                onChange={(e) => setTriageStatus(e.target.value as Item['triageStatus'])}
+                disabled={!writable || Boolean(item.deletedAt)}
+              >
+                <option value="pending">待整理 · 留在收件箱</option>
+                <option value="triaged">已整理 · 进入四象限</option>
+              </select>
+            </label>
+            <label>
               象限
               <select
                 value={quadrant}
                 onChange={(e) => setQuadrant(Number(e.target.value))}
-                disabled={!writable || Boolean(item.deletedAt)}
+                disabled={!writable || Boolean(item.deletedAt) || triageStatus === 'pending'}
               >
-                {quadrantNames.map((label, i) => (
-                  <option value={i} key={i}>
+                {quadrantNames.slice(1).map((label, index) => (
+                  <option value={index + 1} key={index + 1}>
                     {label}
                   </option>
                 ))}
@@ -2496,6 +2599,297 @@ function DetailPanel({
     </Panel>
   );
 }
+function ProjectWorkspace({
+  projects,
+  items,
+  selectedId,
+  writable,
+  busy,
+  onSelect,
+  onCreate,
+  onUpdate,
+  onDelete,
+  onOpenItem,
+  onAddItem,
+}: {
+  projects: Project[];
+  items: Item[];
+  selectedId: string | null;
+  writable: boolean;
+  busy: boolean;
+  onSelect: (id: string | null) => void;
+  onCreate: (value: { name: string; description: string; color: string }) => void;
+  onUpdate: (project: Project, changes: Record<string, unknown>) => void;
+  onDelete: (project: Project) => void;
+  onOpenItem: (item: Item) => void;
+  onAddItem: (project: Project) => void;
+}) {
+  const selected = projects.find((project) => project.id === selectedId) || null;
+  if (selected)
+    return (
+      <ProjectDetail
+        key={`${selected.id}:${selected.version}`}
+        project={selected}
+        items={items.filter((item) => item.projectId === selected.id && !item.deletedAt)}
+        writable={writable}
+        busy={busy}
+        onBack={() => onSelect(null)}
+        onUpdate={(changes) => onUpdate(selected, changes)}
+        onDelete={() => onDelete(selected)}
+        onOpenItem={onOpenItem}
+        onAddItem={() => onAddItem(selected)}
+      />
+    );
+  const active = projects.filter((project) => !project.archivedAt && !project.deletedAt);
+  const archived = projects.filter((project) => project.archivedAt && !project.deletedAt);
+  return (
+    <div className="project-index">
+      <ProjectCreator onCreate={onCreate} disabled={!writable || busy} />
+      <div className="project-index-list">
+        {active.map((project) => {
+          const projectItems = items.filter(
+            (item) => item.projectId === project.id && !item.deletedAt && !item.archivedAt,
+          );
+          const completed = projectItems.filter((item) => item.status === 'done').length;
+          const pending = projectItems.filter(
+            (item) => item.triageStatus === 'pending' && item.status !== 'done',
+          ).length;
+          return (
+            <button
+              className="project-index-row"
+              key={project.id}
+              onClick={() => onSelect(project.id)}
+            >
+              <span className="project-index-mark" style={{ background: project.color }} />
+              <span className="project-index-copy">
+                <strong>{project.name}</strong>
+                <small>{project.description || '还没有填写项目目标'}</small>
+              </span>
+              <span className="project-index-meta">
+                {pending > 0 && <em>{pending} 待整理</em>}
+                <span>
+                  {completed} / {projectItems.length} 完成
+                </span>
+              </span>
+              <ChevronRight size={18} aria-hidden="true" />
+            </button>
+          );
+        })}
+      </div>
+      {!active.length && (
+        <Empty
+          icon={<Layers />}
+          title="为接下来的旅程命名。"
+          text="创建第一个项目，让目标和行动连接起来。"
+        />
+      )}
+      {archived.length > 0 && (
+        <details className="archived-projects">
+          <summary>已归档项目 · {archived.length}</summary>
+          <div className="project-index-list">
+            {archived.map((project) => (
+              <button
+                className="project-index-row is-archived"
+                key={project.id}
+                onClick={() => onSelect(project.id)}
+              >
+                <Archive size={16} />
+                <span className="project-index-copy">
+                  <strong>{project.name}</strong>
+                </span>
+                <ChevronRight size={18} aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function ProjectDetail({
+  project,
+  items,
+  writable,
+  busy,
+  onBack,
+  onUpdate,
+  onDelete,
+  onOpenItem,
+  onAddItem,
+}: {
+  project: Project;
+  items: Item[];
+  writable: boolean;
+  busy: boolean;
+  onBack: () => void;
+  onUpdate: (changes: Record<string, unknown>) => void;
+  onDelete: () => void;
+  onOpenItem: (item: Item) => void;
+  onAddItem: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [name, setName] = useState(project.name);
+  const [description, setDescription] = useState(project.description);
+  const [color, setColor] = useState(project.color);
+  const active = items.filter((item) => !item.archivedAt && item.status !== 'done');
+  const pending = active.filter((item) => item.triageStatus === 'pending');
+  const prioritized = active.filter((item) => item.triageStatus === 'triaged');
+  const completed = items.filter((item) => item.status === 'done' && !item.archivedAt);
+  const progress = items.length ? Math.round((completed.length / items.length) * 100) : 0;
+  const itemList = (rows: Item[]) => (
+    <div className="project-detail-items">
+      {rows.map((item) => (
+        <button key={item.id} onClick={() => onOpenItem(item)}>
+          <span className={`project-item-state is-${item.status}`} />
+          <span>
+            <strong>{item.title}</strong>
+            <small>
+              {item.triageStatus === 'pending' ? '待整理' : quadrantNames[item.quadrant]}
+            </small>
+          </span>
+          <ChevronRight size={16} />
+        </button>
+      ))}
+    </div>
+  );
+  return (
+    <div className="project-detail">
+      <button className="project-back text-button" onClick={onBack}>
+        <ChevronLeft size={16} /> 返回项目
+      </button>
+      <header className="project-detail-header">
+        <span className="project-detail-mark" style={{ background: project.color }} />
+        <div>
+          <h2>{project.name}</h2>
+          <p>{project.description || '还没有填写项目目标。'}</p>
+        </div>
+        <div className="project-detail-actions">
+          <button
+            className="secondary-button"
+            disabled={!writable || busy}
+            onClick={() => setEditing((value) => !value)}
+          >
+            <Settings size={15} /> 编辑
+          </button>
+          {!project.archivedAt && (
+            <button className="primary-button" disabled={!writable || busy} onClick={onAddItem}>
+              <Plus size={16} /> 添加事项
+            </button>
+          )}
+        </div>
+      </header>
+      <div className="project-detail-stats">
+        <span>
+          <strong>{progress}%</strong>完成进度
+        </span>
+        <span>
+          <strong>{active.length}</strong>进行中的事项
+        </span>
+        <span>
+          <strong>{pending.length}</strong>等待整理
+        </span>
+        <span>
+          <strong>{completed.length}</strong>已经完成
+        </span>
+      </div>
+      {editing && (
+        <form
+          className="project-editor"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onUpdate({ name, description, color });
+            setEditing(false);
+          }}
+        >
+          <label>
+            项目名称
+            <input required value={name} onChange={(event) => setName(event.target.value)} />
+          </label>
+          <label>
+            项目目标
+            <textarea
+              rows={3}
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+            />
+          </label>
+          <label className="project-color-field">
+            识别色
+            <input type="color" value={color} onChange={(event) => setColor(event.target.value)} />
+          </label>
+          <div className="project-editor-actions">
+            <button type="button" className="secondary-button" onClick={() => setEditing(false)}>
+              取消
+            </button>
+            <button className="primary-button" disabled={busy}>
+              <Save size={15} /> 保存项目
+            </button>
+          </div>
+        </form>
+      )}
+      {pending.length > 0 && (
+        <section className="project-detail-section">
+          <header>
+            <h3>待整理</h3>
+            <span>{pending.length}</span>
+          </header>
+          {itemList(pending)}
+        </section>
+      )}
+      <section className="project-detail-section">
+        <header>
+          <h3>当前推进</h3>
+          <span>{prioritized.length}</span>
+        </header>
+        {prioritized.length ? itemList(prioritized) : <p>整理后的项目事项会出现在这里。</p>}
+      </section>
+      {completed.length > 0 && (
+        <section className="project-detail-section is-completed">
+          <header>
+            <h3>完成记录</h3>
+            <span>{completed.length}</span>
+          </header>
+          {itemList(completed)}
+        </section>
+      )}
+      <section className="project-project-actions">
+        <div>
+          <strong>项目管理</strong>
+          <p>归档会保留项目与事项；仅空项目可以删除。</p>
+        </div>
+        <div>
+          <button
+            className="secondary-button"
+            disabled={!writable || busy}
+            onClick={() => onUpdate({ archived: !project.archivedAt })}
+          >
+            <Archive size={15} /> {project.archivedAt ? '恢复项目' : '归档项目'}
+          </button>
+          {items.length > 0 ? (
+            <button className="delete-item-button" disabled>
+              <Trash2 size={14} /> 先处理 {items.length} 项关联事项
+            </button>
+          ) : !confirmDelete ? (
+            <button
+              className="delete-item-button"
+              disabled={!writable || busy}
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash2 size={14} /> 删除项目
+            </button>
+          ) : (
+            <button className="delete-item-button is-confirm" disabled={busy} onClick={onDelete}>
+              确认删除空项目
+            </button>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function ProjectCreator({
   onCreate,
   disabled,

@@ -1057,11 +1057,13 @@ export function ReportFoundry({
                               })
                             }
                           >
-                            {Object.entries(quadrantNames).map(([n, l]) => (
-                              <option key={n} value={n}>
-                                {l}
-                              </option>
-                            ))}
+                            {Object.entries(quadrantNames)
+                              .filter(([n]) => Number(n) > 0)
+                              .map(([n, l]) => (
+                                <option key={n} value={n}>
+                                  {l}
+                                </option>
+                              ))}
                           </select>
                         </label>
                         <label>

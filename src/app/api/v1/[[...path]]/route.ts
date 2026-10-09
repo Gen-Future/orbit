@@ -388,6 +388,7 @@ async function handler(req: Request, context: Context) {
             workspaceId: wid,
             dueAt: { lte: thresholdAt },
             status: { in: ['open', 'doing', 'blocked'] },
+            triageStatus: 'triaged',
             quadrant: { in: [1, 2, 3, 4] },
             archivedAt: null,
             deletedAt: null,
@@ -490,6 +491,9 @@ async function handler(req: Request, context: Context) {
             ? { projectId: url.searchParams.get('projectId') }
             : {}),
           ...(url.searchParams.get('status') ? { status: url.searchParams.get('status')! } : {}),
+          ...(url.searchParams.get('triageStatus')
+            ? { triageStatus: url.searchParams.get('triageStatus')! }
+            : {}),
           ...(dateFrom || dateTo
             ? {
                 occurredAt: {
@@ -560,7 +564,13 @@ async function handler(req: Request, context: Context) {
               await createItem(
                 tx,
                 actor,
-                { title, parentId: id, projectId: item.projectId, quadrant: item.quadrant },
+                {
+                  title,
+                  parentId: id,
+                  projectId: item.projectId,
+                  quadrant: item.quadrant,
+                  triageStatus: item.triageStatus,
+                },
                 'ai',
               );
             return item;
@@ -609,9 +619,12 @@ async function handler(req: Request, context: Context) {
       }
     }
     if (resource === 'capture' && method === 'POST') {
+      const raw = await body(req);
       const input = draftSchema
         .extend({ source: z.enum(['ai', 'rules', 'manual']).default('manual') })
-        .parse(await body(req));
+        .parse(raw);
+      if (raw && typeof raw === 'object' && !('triageStatus' in raw) && 'quadrant' in raw)
+        input.triageStatus = 'triaged';
       return ok(
         await mutation(actor, key, { route: 'capture', input }, async (tx) => {
           const { subtasks, source, ...main } = input;
@@ -620,7 +633,13 @@ async function handler(req: Request, context: Context) {
             await createItem(
               tx,
               actor,
-              { title, projectId: item.projectId, parentId: item.id, quadrant: item.quadrant },
+              {
+                title,
+                projectId: item.projectId,
+                parentId: item.id,
+                quadrant: item.quadrant,
+                triageStatus: item.triageStatus,
+              },
               source,
             );
           return item;
@@ -629,9 +648,26 @@ async function handler(req: Request, context: Context) {
       );
     }
     if (resource === 'projects') {
+      if (method === 'GET' && id) {
+        const project = await db.project.findFirst({
+          where: { id, workspaceId: wid, deletedAt: null },
+          include: {
+            _count: { select: { items: { where: { deletedAt: null } } } },
+          },
+        });
+        invariant(project, 404, '项目不存在');
+        return ok(project);
+      }
       if (method === 'GET')
         return ok(
-          await db.project.findMany({ where: { workspaceId: wid }, orderBy: { createdAt: 'asc' } }),
+          await db.project.findMany({
+            where: {
+              workspaceId: wid,
+              deletedAt: null,
+              ...(url.searchParams.get('includeArchived') === 'true' ? {} : { archivedAt: null }),
+            },
+            orderBy: [{ archivedAt: 'asc' }, { updatedAt: 'desc' }],
+          }),
         );
       if (method === 'POST') {
         const input = z
@@ -658,6 +694,91 @@ async function handler(req: Request, context: Context) {
             return project;
           }),
           201,
+        );
+      }
+      if (method === 'PATCH' && id) {
+        const input = z
+          .object({
+            version: z.number().int().positive(),
+            name: z.string().trim().min(1).max(100).optional(),
+            description: z.string().max(2000).optional(),
+            color: z
+              .string()
+              .regex(/^#[0-9a-f]{6}$/i)
+              .optional(),
+            archived: z.boolean().optional(),
+          })
+          .strict()
+          .parse(await body(req));
+        return ok(
+          await mutation(actor, key, { route: `projects:${id}`, input }, async (tx) => {
+            const before = await tx.project.findFirst({
+              where: { id, workspaceId: wid, deletedAt: null },
+            });
+            invariant(before, 404, '项目不存在');
+            invariant(before.version === input.version, 409, '项目已被更新，请刷新后再修改');
+            const { version, archived, ...fields } = input;
+            const changed = await tx.project.updateMany({
+              where: { id, workspaceId: wid, version, deletedAt: null },
+              data: {
+                ...fields,
+                version: { increment: 1 },
+                ...(archived !== undefined ? { archivedAt: archived ? new Date() : null } : {}),
+              },
+            });
+            invariant(changed.count === 1, 409, '项目已被更新，请刷新后再修改');
+            const project = await tx.project.findUniqueOrThrow({ where: { id } });
+            await tx.itemEvent.create({
+              data: {
+                workspaceId: wid,
+                actorId: actor.id,
+                type: archived
+                  ? 'project.archived'
+                  : archived === false
+                    ? 'project.restored'
+                    : 'project.updated',
+                data: json({ before, after: project }),
+              },
+            });
+            return project;
+          }),
+        );
+      }
+      if (method === 'DELETE' && id) {
+        const input = z
+          .object({ version: z.number().int().positive() })
+          .strict()
+          .parse(await body(req));
+        return ok(
+          await mutation(actor, key, { route: `projects:${id}:delete`, input }, async (tx) => {
+            const before = await tx.project.findFirst({
+              where: { id, workspaceId: wid, deletedAt: null },
+            });
+            invariant(before, 404, '项目不存在');
+            invariant(before.version === input.version, 409, '项目已被更新，请刷新后再修改');
+            invariant(
+              (await tx.item.count({
+                where: { projectId: id, workspaceId: wid, deletedAt: null },
+              })) === 0,
+              409,
+              '项目仍有关联事项，请先移动或删除这些事项',
+            );
+            const changed = await tx.project.updateMany({
+              where: { id, workspaceId: wid, version: input.version, deletedAt: null },
+              data: { deletedAt: new Date(), version: { increment: 1 } },
+            });
+            invariant(changed.count === 1, 409, '项目已被更新，请刷新后再修改');
+            const project = await tx.project.findUniqueOrThrow({ where: { id } });
+            await tx.itemEvent.create({
+              data: {
+                workspaceId: wid,
+                actorId: actor.id,
+                type: 'project.deleted',
+                data: json({ before, after: project }),
+              },
+            });
+            return project;
+          }),
         );
       }
     }

@@ -12,12 +12,25 @@ export const scopes = [
 ] as const;
 export type Role = (typeof roles)[number];
 export type Scope = (typeof scopes)[number];
-export const quadrantNames = ['收件箱', '重要且紧急', '重要不紧急', '紧急不重要', '不紧急不重要'];
+export const quadrantNames = ['', '重要且紧急', '重要不紧急', '紧急不重要', '不紧急不重要'];
+export const triageStatuses = ['pending', 'triaged'] as const;
+export type InboxCandidate = {
+  triageStatus?: string;
+  status: string;
+  archivedAt?: string | Date | null;
+  deletedAt?: string | Date | null;
+};
+export function isInboxItem(item: InboxCandidate) {
+  return (
+    item.triageStatus === 'pending' && item.status !== 'done' && !item.archivedAt && !item.deletedAt
+  );
+}
 export const sedimentAfterMs = 7 * 24 * 60 * 60 * 1000;
 export type SedimentCandidate = {
   dueAt: string | Date | null;
   status: string;
   quadrant: number;
+  triageStatus?: string;
   archivedAt?: string | Date | null;
   deletedAt?: string | Date | null;
 };
@@ -27,6 +40,7 @@ export function isSedimentItem(item: SedimentCandidate, now: number | Date) {
     !['open', 'doing', 'blocked'].includes(item.status) ||
     item.quadrant < 1 ||
     item.quadrant > 4 ||
+    item.triageStatus === 'pending' ||
     item.archivedAt ||
     item.deletedAt
   )
@@ -72,7 +86,8 @@ export const itemInput = z
   .object({
     title: z.string().trim().min(1).max(240),
     notes: z.string().max(12000).default(''),
-    quadrant: z.number().int().min(0).max(4).default(0),
+    quadrant: z.number().int().min(1).max(4).default(2),
+    triageStatus: z.enum(triageStatuses).default('pending'),
     projectId: z.string().nullable().optional(),
     parentId: z.string().nullable().optional(),
     dueAt: instant.nullable().optional(),
@@ -86,7 +101,8 @@ export const itemPatch = itemInput
     // Zod 4 applies nested defaults inside optional fields. PATCH must leave
     // omitted values untouched, including a star move that only sends position.
     notes: z.string().max(12000).optional(),
-    quadrant: z.number().int().min(0).max(4).optional(),
+    quadrant: z.number().int().min(1).max(4).optional(),
+    triageStatus: z.enum(triageStatuses).optional(),
     version: z.number().int().positive(),
     status: z.enum(['open', 'doing', 'blocked', 'done']).optional(),
     archived: z.boolean().optional(),
@@ -103,6 +119,7 @@ export type CaptureDraft = {
   title: string;
   notes: string;
   quadrant: number;
+  triageStatus: (typeof triageStatuses)[number];
   projectId?: string | null;
   dueAt?: string | null;
   reminderAt?: string | null;
@@ -363,7 +380,9 @@ export function simpleDraft(text: string, zone: string, now = new Date()): Captu
         ? 3
         : /不重要/.test(text) && /不紧急/.test(text)
           ? 4
-          : 0,
+          : 2,
+    triageStatus:
+      important || urgent || (/不重要/.test(text) && /不紧急/.test(text)) ? 'triaged' : 'pending',
     dueAt,
     reminderAt: /提醒/.test(text) ? dueAt : null,
     subtasks: [],

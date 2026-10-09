@@ -76,6 +76,7 @@ export async function scanNotifications(now = new Date()) {
             deletedAt: null,
             status: { not: 'done' },
             quadrant: { in: [1, 2] },
+            triageStatus: 'triaged',
           },
           orderBy: [{ quadrant: 'asc' }, { dueAt: 'asc' }],
           take: 3,

@@ -43,12 +43,13 @@ import {
   type OrbitPoint,
   type PositionedItem,
 } from '../../packages/core/src/orbit-position';
-import { isSedimentItem } from '../../packages/core/src';
+import { isInboxItem, isSedimentItem } from '../../packages/core/src';
 
 import { layoutStarLabels } from '../../packages/core/src/orbit-labels';
 import { SedimentBelt, type SedimentPage, type SedimentSummary } from './sediment-belt';
 export type NebulaItem = PositionedItem & {
   title: string;
+  triageStatus: 'pending' | 'triaged';
   version: number;
   projectId: string | null;
   project?: { name: string; color: string } | null;
@@ -167,6 +168,7 @@ function dueLabel(dueAt: string | null, now: number) {
 
 export function NebulaMatrix<T extends NebulaItem>({
   items,
+  loading,
   now,
   writable,
   busy,
@@ -196,6 +198,7 @@ export function NebulaMatrix<T extends NebulaItem>({
   onBulkReschedule,
 }: {
   items: T[];
+  loading: boolean;
   now: Date | null;
   writable: boolean;
   busy: boolean;
@@ -279,7 +282,7 @@ export function NebulaMatrix<T extends NebulaItem>({
       items
         .filter(
           (item) =>
-            item.quadrant > 0 &&
+            item.triageStatus === 'triaged' &&
             !isSedimentItem(item, Date.parse(sediment.serverNow)) &&
             (status === 'all' ||
               (status === 'active' ? item.status !== 'done' : item.status === status)) &&
@@ -312,7 +315,9 @@ export function NebulaMatrix<T extends NebulaItem>({
   const labels = pages[currentPage];
   const positions = new Map(labels.map((entry) => [entry.id, entry]));
   const visible = candidates.filter((item) => positions.has(item.id));
-  const inboxCount = items.filter((item) => !item.quadrant && item.status !== 'done').length;
+  const inboxCount = items.filter(isInboxItem).length;
+  const firstUse = !loading && items.length === 0 && sediment.total === 0;
+  const filteredEmpty = Boolean(query || project || status !== 'active');
   useEffect(() => {
     setPage(0);
   }, [query, project, status]);
@@ -641,7 +646,7 @@ export function NebulaMatrix<T extends NebulaItem>({
           <option value="all">全部状态</option>
         </select>
         <button className="nebula-inbox" onClick={onInbox}>
-          待归类 <span>{inboxCount}</span>
+          待整理 <span>{inboxCount}</span>
           <ArrowUpRight size={13} />
         </button>
       </div>
@@ -685,7 +690,7 @@ export function NebulaMatrix<T extends NebulaItem>({
                   </strong>
                   <span>
                     {aiSignal.phase === 'resolved'
-                      ? `${QUADRANTS.find((entry) => entry.id === aiSignal.quadrant)?.title || '待归类'} · ${aiSignal.title || '准备确认'}`
+                      ? `${QUADRANTS.find((entry) => entry.id === aiSignal.quadrant)?.title || '待整理'} · ${aiSignal.title || '准备确认'}`
                       : '读取时间、行动与优先级'}
                   </span>
                 </div>
@@ -711,7 +716,7 @@ export function NebulaMatrix<T extends NebulaItem>({
             </div>
             <div
               ref={sunRef}
-              className={`nebula-sun ${sunMenuOpen ? 'is-menu-open' : ''} ${drag?.target === 'sun' ? 'is-target' : ''} ${flight?.kind === 'complete' ? 'is-fed' : ''}`}
+              className={`nebula-sun ${sunMenuOpen ? 'is-menu-open' : ''} ${drag?.moved ? 'is-armed' : ''} ${drag?.target === 'sun' ? 'is-target' : ''} ${flight?.kind === 'complete' ? 'is-fed' : ''}`}
               role="group"
               aria-label="太阳，拖入事项完成"
               onKeyDown={(event) => {
@@ -749,13 +754,17 @@ export function NebulaMatrix<T extends NebulaItem>({
                   </div>
                 </>
               )}
-              <span className="celestial-label">
-                {resolving?.kind === 'complete'
-                  ? '正在完成…'
-                  : drag?.target === 'sun'
-                    ? '松手，点亮太阳'
-                    : '拖入完成'}
-              </span>
+              {(drag?.moved || resolving?.kind === 'complete' || flight?.kind === 'complete') && (
+                <span className="celestial-label" role="status" aria-live="polite">
+                  {resolving?.kind === 'complete'
+                    ? '正在完成…'
+                    : flight?.kind === 'complete'
+                      ? '已汇入太阳'
+                      : drag?.target === 'sun'
+                        ? '松手完成'
+                        : '拖到太阳完成'}
+                </span>
+              )}
             </div>
             {QUADRANTS.map((q) => (
               <div
@@ -912,29 +921,51 @@ export function NebulaMatrix<T extends NebulaItem>({
                 </Fragment>
               );
             })}
-            {!visible.length && (
-              <div className="nebula-empty">
-                <Crosshair size={32} />
+            {!loading && !visible.length && (
+              <div
+                className={`nebula-empty ${firstUse ? 'is-first' : ''}`}
+                role={firstUse ? 'region' : 'status'}
+                aria-label={firstUse ? '添加第一件事项' : undefined}
+              >
+                {firstUse ? <Sparkles size={34} /> : <Crosshair size={28} />}
                 <h3>
-                  {query || project
-                    ? '这片星域，暂时没有匹配。'
-                    : status === 'done'
-                      ? '完成的星体会在这里留下光。'
-                      : sediment.total
-                        ? '长期逾期事项，已进入时间沉积带。'
-                        : '为你的宇宙，点亮第一颗星。'}
+                  {firstUse
+                    ? '先添加一件事项'
+                    : filteredEmpty
+                      ? '没有符合当前条件的事项'
+                      : inboxCount > 0
+                        ? '有事项正在收件箱等待整理'
+                        : sediment.total
+                          ? '长期逾期事项已进入时间沉积带'
+                          : '当前没有待推进的事项'}
                 </h3>
                 <p>
-                  {query || project
-                    ? '调整筛选，重新寻找。'
-                    : sediment.total
-                      ? '从右侧打开沉积带，重新安排它们。'
-                      : '记录一件事，让注意力有个落点。'}
+                  {firstUse
+                    ? '输入一句话让 AI 帮你整理，或点击下方按钮手动添加。'
+                    : filteredEmpty
+                      ? '调整搜索、项目或状态筛选后再看看。'
+                      : inboxCount > 0
+                        ? '先为它们决定优先级，再放入四象限。'
+                        : sediment.total
+                          ? '打开右侧沉积带，为它们重新安排时间。'
+                          : '新的事项会出现在这片星图中。'}
                 </p>
-                {writable && !query && !project && (
-                  <button className="primary-button" aria-label="放入星图" onClick={() => onAdd(2)}>
-                    记录事项 <Plus size={16} />
+                {writable && firstUse && (
+                  <button
+                    className="primary-button"
+                    aria-label="添加第一件事项"
+                    onClick={() => onAdd(2)}
+                  >
+                    添加第一件事项 <Plus size={16} />
                   </button>
+                )}
+                {!firstUse && inboxCount > 0 && !filteredEmpty && (
+                  <button className="secondary-button" onClick={onInbox}>
+                    去整理收件箱 <ArrowUpRight size={15} />
+                  </button>
+                )}
+                {!firstUse && sediment.total > 0 && !filteredEmpty && inboxCount === 0 && (
+                  <span className="nebula-empty-hint">从右侧的时间沉积带进入</span>
                 )}
               </div>
             )}

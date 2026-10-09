@@ -12,37 +12,38 @@ Base: `/api/v1/workspaces/{workspaceId}`. JSON only. Authenticate by HttpOnly se
 
 ## Resources
 
-| Method          | Resource                   | Behavior                                                                                                                                                  |
-| --------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET             | `/items`                   | `{items,total,page,limit}`; filters `q`, `projectId`, `status`, `archived=true`, `all=true`, `deleted=true`, `from`, `to`; default 500, max 1000 per page |
-| GET             | `/items/:id`               | Item, project, children, pending reminders, latest 100 events                                                                                             |
-| GET             | `/items/sediment`          | Items overdue by at least 168 hours; filters `q`, `quadrant`, `page`, `limit`; returns global quadrant summary                                            |
-| POST            | `/items`                   | Create item; fields title, notes, quadrant, projectId, parentId, dueAt, occurredAt, reminderAt                                                            |
-| POST            | `/items/bulk-reschedule`   | Atomically reschedule 1–100 sediment items with `{items:[{id,version}],dueAt}`                                                                            |
-| PATCH           | `/items/:id`               | Update with version; additional status and archived fields                                                                                                |
-| DELETE          | `/items/:id`               | `{version}`; reversible deletion, returns `{item, affectedIds}`                                                                                           |
-| POST            | `/items/:id/restore`       | `{version}`; restore deletion, returns `{item, affectedIds}`                                                                                              |
-| POST            | `/items/:id/plan`          | Confirm revised draft and add subtasks atomically; requires version                                                                                       |
-| POST            | `/items/:id/snooze`        | `{minutes:5..10080}` replaces pending reminders                                                                                                           |
-| POST            | `/capture`                 | Confirm natural-language draft and up to 12 child tasks atomically                                                                                        |
-| GET/POST        | `/projects`                | List/create projects; creation takes name, description, hex color                                                                                         |
-| GET             | `/events`                  | Newest 200 events; optional itemId and before timestamp                                                                                                   |
-| GET             | `/signals`                 | Overdue, seven-day inactive, top important items                                                                                                          |
-| GET/POST        | `/reports`                 | List drafts / create with startAt, endAt (max 93 days)                                                                                                    |
-| PATCH           | `/reports/:id`             | Save edited Markdown content                                                                                                                              |
-| POST            | `/ai`                      | `{text,skillId?,itemId?}`; returns draft, mode, message and jobId; never creates an item                                                                  |
-| GET             | `/skills`                  | Versioned manifests, JSON schemas, permissions, triggers                                                                                                  |
-| POST            | `/skills/:id/run`          | Run capability with declared input and required scopes                                                                                                    |
-| GET             | `/settings`                | Safe model config metadata, own notification settings, channel availability                                                                               |
-| POST            | `/settings/ai`             | Retired: returns 403 because AI endpoints are managed globally                                                                                            |
-| POST            | `/settings/notifications`  | Own reminder channels, quiet hours, daily limit, morning schedule, pausedUntil                                                                            |
-| GET             | `/notifications`           | Own latest 100 inbox signals                                                                                                                              |
-| POST            | `/notifications/read`      | `{id}` marks own notification read                                                                                                                        |
-| POST            | `/notifications/subscribe` | Standard PushSubscription JSON; trusted browser push endpoints only                                                                                       |
-| GET/POST        | `/members`                 | Read members / admin adds existing user or creates one with initial password                                                                              |
-| PATCH           | `/members/:id`             | Owner changes non-owner member role                                                                                                                       |
-| GET/POST/DELETE | `/tokens[/:id]`            | Admin lists, creates or revokes workspace tokens; secret returned only at creation                                                                        |
-| GET             | `/export`                  | Admin export of workspace, projects, items, all events and reports                                                                                        |
+| Method           | Resource                   | Behavior                                                                                                                                                  |
+| ---------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET              | `/items`                   | `{items,total,page,limit}`; filters `q`, `projectId`, `status`, `triageStatus`, `archived=true`, `all=true`, `deleted=true`, `from`, `to`; default 500, max 1000 per page |
+| GET              | `/items/:id`               | Item, project, children, pending reminders, latest 100 events                                                                                             |
+| GET              | `/items/sediment`          | Items overdue by at least 168 hours; filters `q`, `quadrant`, `page`, `limit`; returns global quadrant summary                                            |
+| POST             | `/items`                   | Create item; fields title, notes, quadrant, triageStatus, projectId, parentId, dueAt, occurredAt, reminderAt                                              |
+| POST             | `/items/bulk-reschedule`   | Atomically reschedule 1–100 sediment items with `{items:[{id,version}],dueAt}`                                                                            |
+| PATCH            | `/items/:id`               | Update with version; additional status and archived fields                                                                                                |
+| DELETE           | `/items/:id`               | `{version}`; reversible deletion, returns `{item, affectedIds}`                                                                                           |
+| POST             | `/items/:id/restore`       | `{version}`; restore deletion, returns `{item, affectedIds}`                                                                                              |
+| POST             | `/items/:id/plan`          | Confirm revised draft and add subtasks atomically; requires version                                                                                       |
+| POST             | `/items/:id/snooze`        | `{minutes:5..10080}` replaces pending reminders                                                                                                           |
+| POST             | `/capture`                 | Confirm natural-language draft and up to 12 child tasks atomically                                                                                        |
+| GET/POST         | `/projects`                | List/create projects; `includeArchived=true` includes archived projects                                                                                   |
+| GET/PATCH/DELETE | `/projects/:id`            | Read/edit/archive a project, or soft-delete it when no active items remain                                                                                |
+| GET              | `/events`                  | Newest 200 events; optional itemId and before timestamp                                                                                                   |
+| GET              | `/signals`                 | Overdue, seven-day inactive, top important items                                                                                                          |
+| GET/POST         | `/reports`                 | List drafts / create with startAt, endAt (max 93 days)                                                                                                    |
+| PATCH            | `/reports/:id`             | Save edited Markdown content                                                                                                                              |
+| POST             | `/ai`                      | `{text,skillId?,itemId?}`; returns draft, mode, message and jobId; never creates an item                                                                  |
+| GET              | `/skills`                  | Versioned manifests, JSON schemas, permissions, triggers                                                                                                  |
+| POST             | `/skills/:id/run`          | Run capability with declared input and required scopes                                                                                                    |
+| GET              | `/settings`                | Safe model config metadata, own notification settings, channel availability                                                                               |
+| POST             | `/settings/ai`             | Retired: returns 403 because AI endpoints are managed globally                                                                                            |
+| POST             | `/settings/notifications`  | Own reminder channels, quiet hours, daily limit, morning schedule, pausedUntil                                                                            |
+| GET              | `/notifications`           | Own latest 100 inbox signals                                                                                                                              |
+| POST             | `/notifications/read`      | `{id}` marks own notification read                                                                                                                        |
+| POST             | `/notifications/subscribe` | Standard PushSubscription JSON; trusted browser push endpoints only                                                                                       |
+| GET/POST         | `/members`                 | Read members / admin adds existing user or creates one with initial password                                                                              |
+| PATCH            | `/members/:id`             | Owner changes non-owner member role                                                                                                                       |
+| GET/POST/DELETE  | `/tokens[/:id]`            | Admin lists, creates or revokes workspace tokens; secret returned only at creation                                                                        |
+| GET              | `/export`                  | Admin export of workspace, projects, items, all events and reports                                                                                        |
 
 Workspace creation: `POST /api/v1/workspaces` with name and IANA timezone (user session required).
 Authentication: `/api/v1/auth/status`, `/auth/register`, `/auth/login`, `/auth/logout`, `/auth/me`.
@@ -58,7 +59,7 @@ Authorization: Bearer YOUR_TOKEN
 Idempotency-Key: 3b3f628e-fc08-481d-80b6-7e8cb1779b46
 Content-Type: application/json
 
-{"title":"完成产品方案","quadrant":2,"dueAt":"2026-10-01T18:00:00+08:00"}
+{"title":"完成产品方案","quadrant":2,"triageStatus":"triaged","dueAt":"2026-10-01T18:00:00+08:00"}
 ```
 
 Then `PATCH /items/RETURNED_ITEM_ID` with a new idempotency key and `{"version":1,"status":"done"}`. Inspect the returned version instead of assuming future values.

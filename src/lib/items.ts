@@ -62,9 +62,11 @@ async function validateLinks(
 ) {
   if (projectId)
     invariant(
-      await tx.project.findFirst({ where: { id: projectId, workspaceId } }),
+      await tx.project.findFirst({
+        where: { id: projectId, workspaceId, archivedAt: null, deletedAt: null },
+      }),
       404,
-      '项目不存在',
+      '项目不存在或已归档',
     );
   if (parentId) {
     const parent = await itemInSpace(tx, parentId, workspaceId);
@@ -82,6 +84,8 @@ export async function createItem(
   source = 'manual',
 ) {
   const data = itemInput.parse(input);
+  if (input && typeof input === 'object' && !('triageStatus' in input) && 'quadrant' in input)
+    data.triageStatus = 'triaged';
   await validateLinks(tx, actor.workspaceId, data.projectId, data.parentId);
   const { reminderAt, ...fields } = data;
   const item = await tx.item.create({
@@ -113,7 +117,12 @@ export async function updateItem(
   invariant(!before.deletedAt, 409, '事项已删除，请先恢复');
   invariant(before.version === patch.version, 409, '事项已被更新，请刷新后再修改');
   if (patch.parentId) invariant(patch.parentId !== id, 400, '事项不能作为自己的子事项');
-  await validateLinks(tx, actor.workspaceId, patch.projectId, patch.parentId);
+  await validateLinks(
+    tx,
+    actor.workspaceId,
+    patch.projectId === before.projectId ? undefined : patch.projectId,
+    patch.parentId,
+  );
   if (patch.parentId)
     invariant(
       (await tx.item.count({ where: { parentId: id } })) === 0,
@@ -131,11 +140,21 @@ export async function updateItem(
     invariant(fields.quadrant === quadrantAt(point), 400, '坐标与象限不一致');
   const resetsPosition =
     (fields.quadrant !== undefined && fields.quadrant !== before.quadrant) ||
+    fields.triageStatus === 'pending' ||
     (fields.dueAt !== undefined && fields.dueAt !== before.dueAt?.toISOString());
   const data = {
     ...fields,
+    ...(fields.quadrant !== undefined && fields.triageStatus === undefined
+      ? { triageStatus: 'triaged' }
+      : {}),
     ...(point
-      ? { quadrant: quadrantAt(point), orbitX: point.x, orbitY: point.y, orbitPlacedAt: new Date() }
+      ? {
+          quadrant: quadrantAt(point),
+          triageStatus: 'triaged',
+          orbitX: point.x,
+          orbitY: point.y,
+          orbitPlacedAt: new Date(),
+        }
       : resetsPosition
         ? { orbitX: null, orbitY: null, orbitPlacedAt: null }
         : {}),
@@ -194,7 +213,7 @@ export async function signals(workspaceId: string) {
     overdue: items.filter((x) => x.dueAt && x.dueAt.getTime() < now),
     forgotten: items.filter((x) => now - x.updatedAt.getTime() > 7 * 864e5),
     next: items
-      .filter((x) => [1, 2].includes(x.quadrant))
+      .filter((x) => x.triageStatus === 'triaged' && [1, 2].includes(x.quadrant))
       .sort((a, b) => a.quadrant - b.quadrant)
       .slice(0, 3),
   };

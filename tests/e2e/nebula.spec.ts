@@ -28,6 +28,57 @@ async function createSedimentItems(page: Page, workspaceId: string, count = 4) {
     expect(response.status()).toBe(201);
   }
 }
+test('首次进入星图：加载完成后再显示添加引导', async ({ page }) => {
+  const base = 'http://localhost:3001';
+  let releaseItems: (() => void) | undefined;
+  const itemsRequested = new Promise<void>((resolve) => {
+    void page.route('**/workspaces/*/items?limit=1000', async (route) => {
+      await new Promise<void>((release) => {
+        releaseItems = release;
+        resolve();
+      });
+      await route.continue();
+    });
+  });
+  await page.goto(base);
+  expect(
+    (
+      await page.request.post(`${base}/api/v1/auth/register`, {
+        headers: { Origin: base },
+        data: {
+          email: `first-use-${randomUUID()}@orbit.test`,
+          password: 'Orbit-first-use-password',
+          name: 'First use tester',
+        },
+      })
+    ).status(),
+  ).toBe(200);
+  await page.reload();
+  await expect(page.locator('.nebula-matrix')).toBeVisible();
+  await itemsRequested;
+  await expect(page.locator('.nebula-empty')).toHaveCount(0);
+  releaseItems?.();
+  await expect(page.getByRole('region', { name: '添加第一件事项' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '先添加一件事项' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '添加第一件事项' })).toBeVisible();
+  for (const [name, width, height] of [
+    ['desktop', 1440, 1000],
+    ['mobile', 390, 844],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    await expect(page.getByRole('button', { name: '添加第一件事项' })).toBeInViewport();
+    await expect(page.getByLabel('自然语言记录事项')).toBeInViewport();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await page.screenshot({
+      path: `.impeccable/review/first-item-${name}.png`,
+      animations: 'disabled',
+    });
+  }
+  await page.getByRole('button', { name: '添加第一件事项' }).click();
+  await expect(page.getByRole('dialog').getByLabel('事项名称')).toBeVisible();
+});
 test('星图桌面与手机：画布、坐标、沉浸、缩放及减少动效', async ({ browser }) => {
   for (const [name, width, height] of [
     ['desktop', 1440, 1000],
@@ -436,6 +487,7 @@ test('太阳完成与黑洞删除：取消、失败恢复、吸入动效、撤�
     const read = async (id: string) => (await page.request.get(`${prefix}/items/${id}`)).json();
     await page.reload();
     await enterMap(page);
+    await expect(page.locator('.celestial-label')).toHaveCount(0);
     const touch = mobile ? await context.newCDPSession(page) : null;
     async function move(x: number, y: number) {
       if (touch)
@@ -461,6 +513,8 @@ test('太阳完成与黑洞删除：取消、失败恢复、吸入动效、撤�
       await expect(page.locator('.nebula-blackhole')).toHaveCount(0);
       await move(x + 20, y - 20);
       await expect(page.locator('.nebula-blackhole')).toBeVisible();
+      await expect(page.locator('.nebula-sun')).toHaveClass(/is-armed/);
+      await expect(page.locator('.celestial-label')).toHaveText('拖到太阳完成');
     }
     async function target(name: 'sun' | 'blackhole') {
       const b = (await page
@@ -468,6 +522,7 @@ test('太阳完成与黑洞删除：取消、失败恢复、吸入动效、撤�
         .boundingBox())!;
       await move(b.x + b.width / 2, b.y + b.height / 2);
       await expect(page.locator(`.nebula-${name}`)).toHaveClass(/is-target/);
+      if (name === 'sun') await expect(page.locator('.celestial-label')).toHaveText('松手完成');
     }
     async function release() {
       if (touch)
@@ -526,7 +581,7 @@ test('太阳完成与黑洞删除：取消、失败恢复、吸入动效、撤�
     await expect(page.locator(`[data-item-id="${hole.id}"]`)).toBeVisible();
     // Deleting from the accessible detail action uses the same path and can be restored after reload.
     await page.locator(`[data-item-id="${hole.id}"]`).click();
-    await page.getByRole('button', { name: '删除事项及子事项' }).click();
+    await page.locator('.detail-danger-disclosure > summary').click();
     await expect(page.getByText('确认删除这颗星体？')).toBeVisible();
     await page.getByRole('button', { name: '确认删除', exact: true }).click();
     await expect.poll(async () => Boolean((await read(hole.id)).deletedAt)).toBe(true);

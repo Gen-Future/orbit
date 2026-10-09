@@ -103,6 +103,65 @@ test('真实 API / PostgreSQL 业务与隔离闭环', async (t) => {
       403,
     );
   });
+  await t.test('收件箱独立于四象限，项目支持详情、编辑、归档与空项目删除', async () => {
+    const inbox = await request(`workspaces/${widA}/items`, 'POST', {
+      title: `Inbox ${unique}`,
+    });
+    assert.equal(inbox.status, 201, JSON.stringify(inbox.body));
+    assert.equal(inbox.body.triageStatus, 'pending');
+    assert.equal(inbox.body.quadrant, 2);
+    const inboxRows = await request(`workspaces/${widA}/items?triageStatus=pending`);
+    assert.ok(inboxRows.body.items.some((item: { id: string }) => item.id === inbox.body.id));
+
+    const created = await request(`workspaces/${widA}/projects`, 'POST', {
+      name: `Lifecycle ${unique}`,
+      description: 'Original',
+      color: '#83dcf0',
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    const projectId = created.body.id;
+    const updated = await request(`workspaces/${widA}/projects/${projectId}`, 'PATCH', {
+      version: 1,
+      name: `Lifecycle updated ${unique}`,
+    });
+    assert.equal(updated.body.version, 2);
+    const archived = await request(`workspaces/${widA}/projects/${projectId}`, 'PATCH', {
+      version: 2,
+      archived: true,
+    });
+    assert.ok(archived.body.archivedAt);
+    assert.equal(
+      (await request(`workspaces/${widA}/projects`)).body.some(
+        (project: { id: string }) => project.id === projectId,
+      ),
+      false,
+    );
+    const detail = await request(`workspaces/${widA}/projects/${projectId}`);
+    assert.equal(detail.body.id, projectId);
+    const restored = await request(`workspaces/${widA}/projects/${projectId}`, 'PATCH', {
+      version: 3,
+      archived: false,
+    });
+    assert.equal(restored.body.version, 4);
+    const linked = await request(`workspaces/${widA}/items`, 'POST', {
+      title: `Linked ${unique}`,
+      quadrant: 2,
+      projectId,
+    });
+    assert.equal(linked.body.triageStatus, 'triaged');
+    assert.equal(
+      (await request(`workspaces/${widA}/projects/${projectId}`, 'DELETE', { version: 4 })).status,
+      409,
+    );
+    await request(`workspaces/${widA}/items/${linked.body.id}`, 'PATCH', {
+      version: linked.body.version,
+      projectId: null,
+    });
+    assert.equal(
+      (await request(`workspaces/${widA}/projects/${projectId}`, 'DELETE', { version: 4 })).status,
+      200,
+    );
+  });
   await t.test('并发幂等创建只保存一次', async () => {
     const key = randomUUID(),
       data = {
@@ -483,6 +542,7 @@ test('真实 API / PostgreSQL 业务与隔离闭环', async (t) => {
         workspaceId: widA,
         title: `${marker}-${index}`,
         quadrant: (index % 4) + 1,
+        triageStatus: 'triaged',
         status: index % 3 === 0 ? 'doing' : index % 3 === 1 ? 'blocked' : 'open',
         dueAt: oldDueAt,
       })),

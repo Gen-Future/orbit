@@ -83,7 +83,8 @@ async function main() {
     {
       title: '探索一个更自然的 AI 输入方式',
       notes: '灵感不必在记录时就变得井井有条。',
-      quadrant: 0,
+      quadrant: 2,
+      triageStatus: 'pending',
       projectId: launch.id,
     },
     {
