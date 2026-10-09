@@ -485,23 +485,25 @@ export function ReportFoundry({
     <div className="report-foundry" aria-busy={loading || Boolean(busy)}>
       <header className="foundry-heading">
         <div>
-          <h1>把这一周，铸成你的表达。</h1>
-          <p>真实行动是素材，你的风格是模具。</p>
+          <h1 aria-label="把这一周，铸成你的表达。">周报</h1>
+          <p>选行动，生成一份像你的周报。</p>
         </div>
         <div>
           <button
-            className="secondary-button"
+            className="icon-button"
+            aria-label="编辑我的写作风格"
+            title="编辑我的写作风格"
             onClick={() => {
               setDefinition(template?.definition || standardReportDefinition);
               setDrawer('template');
             }}
           >
             <SlidersHorizontal size={16} />
-            我的写作风格
           </button>
           <button
             className="icon-button"
             aria-label="打开周报档案"
+            title="打开周报档案"
             onClick={() => setDrawer('archive')}
           >
             <History size={20} />
@@ -549,14 +551,13 @@ export function ReportFoundry({
               回到本周
             </button>
           </div>
-          <span>
-            {context?.calendar.status === 'fallback'
-              ? '调休日历暂未同步 · 按普通周历显示'
-              : context?.calendar.status === 'cached'
-                ? '使用已缓存的中国调休日历'
-                : '中国调休日历'}{' '}
-            · {zone}
-          </span>
+          {(context?.calendar.status === 'fallback' || context?.calendar.status === 'cached') && (
+            <span>
+              {context?.calendar.status === 'fallback'
+                ? '调休日历暂未同步'
+                : '使用已缓存的调休日历'}
+            </span>
+          )}
         </div>
         <div className="foundry-days">
           {(context?.days || []).map((day, i) => (
@@ -708,7 +709,6 @@ export function ReportFoundry({
                 >
                   清空选择
                 </button>
-                <span>只记录实质进展</span>
               </div>
               {omitted.length > 0 && (
                 <details className="foundry-radar">

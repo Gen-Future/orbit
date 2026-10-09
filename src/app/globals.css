@@ -1443,6 +1443,73 @@ nav {
   justify-content: space-between;
   padding-top: 5px;
 }
+.detail-disclosure,
+.detail-history,
+.detail-danger-disclosure {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.detail-disclosure summary,
+.detail-history summary,
+.detail-danger-disclosure summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 30px;
+  cursor: pointer;
+  color: #c7d5b6;
+  font-size: 11px;
+  list-style: none;
+}
+.detail-disclosure summary::-webkit-details-marker,
+.detail-history summary::-webkit-details-marker,
+.detail-danger-disclosure summary::-webkit-details-marker {
+  display: none;
+}
+.detail-disclosure summary::after,
+.detail-history summary::after,
+.detail-danger-disclosure summary::after {
+  content: '+';
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+}
+.detail-disclosure[open] summary::after,
+.detail-history[open] summary::after,
+.detail-danger-disclosure[open] summary::after {
+  content: '−';
+}
+.detail-disclosure summary small {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.detail-disclosure > .form-grid {
+  margin-top: 15px;
+}
+.detail-more-actions .detail-utilities {
+  margin-top: 9px;
+}
+.detail-history {
+  margin: 0 26px 28px;
+}
+.detail-history > div {
+  margin-top: 8px;
+}
+.detail-danger-disclosure {
+  margin: 0 26px 28px;
+  border-top-color: #4c302b;
+}
+.detail-danger-disclosure summary {
+  color: #d69c8d;
+}
+.detail-danger-disclosure .detail-danger {
+  margin: 12px 0 0;
+}
 .detail-danger {
   margin: 0 26px 28px;
   padding: 17px;
@@ -3072,6 +3139,10 @@ nav {
   }
   .detail-section {
     margin: 0 22px 25px;
+  }
+  .detail-history,
+  .detail-danger-disclosure {
+    margin-inline: 22px;
   }
   .detail-status-switcher {
     margin: 18px 22px 0;

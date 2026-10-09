@@ -876,29 +876,7 @@ export default function Orbit() {
             </button>
           ))}
         </nav>
-        <div className="sidebar-projects">
-          <span className="muted-label">你的项目</span>
-          {projects.slice(0, 4).map((p) => (
-            <button
-              key={p.id}
-              onClick={() => {
-                setProjectFilter(p.id);
-                setTab('projects');
-                setMobileNav(false);
-              }}
-            >
-              <span style={{ background: p.color }} />
-              {p.name}
-            </button>
-          ))}
-          {!projects.length && <p>让零散的事，连成一条线。</p>}
-        </div>
         <div className="sidebar-bottom">
-          <div className="system-presence">
-            <span className={config?.aiConfigured ? 'online-dot' : 'idle-dot'} />
-            {config?.aiConfigured ? 'AI 已连接' : '随时接入你的 AI'}
-            <span className="mono">01</span>
-          </div>
           <button
             hidden={!user.isSystemAdmin}
             className={`nav-item admin-nav-item ${tab === 'admin' ? 'active' : ''}`}
@@ -958,8 +936,6 @@ export default function Orbit() {
             <Menu />
           </button>
           <div className="breadcrumb">
-            <span>我的空间</span>
-            <ChevronRight size={13} />
             <strong>
               {tab === 'admin'
                 ? '系统控制台'
@@ -967,24 +943,6 @@ export default function Orbit() {
             </strong>
           </div>
           <div className="header-right">
-            <span className="header-date">
-              {now
-                ? new Intl.DateTimeFormat('zh-CN', {
-                    timeZone: zone,
-                    month: 'long',
-                    day: 'numeric',
-                    weekday: 'long',
-                  }).format(now)
-                : ''}
-            </span>
-            <button
-              className="icon-button"
-              aria-label="刷新工作台"
-              disabled={Boolean(busy) || dataLoading}
-              onClick={refresh}
-            >
-              <RefreshCw size={17} className={dataLoading ? 'spin' : ''} />
-            </button>
             <button
               className={`icon-button notification-button ${notifications.some((n) => !n.readAt) ? 'has-notifications' : ''}`}
               aria-label="通知"
@@ -2255,65 +2213,74 @@ function DetailPanel({
             disabled={!writable || Boolean(item.deletedAt)}
           />
         </label>
-        <div className="form-grid">
-          <label>
-            象限
-            <select
-              value={quadrant}
-              onChange={(e) => setQuadrant(Number(e.target.value))}
-              disabled={!writable || Boolean(item.deletedAt)}
-            >
-              {quadrantNames.map((label, i) => (
-                <option value={i} key={i}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            项目
-            <select
-              value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
-              disabled={!writable || Boolean(item.deletedAt)}
-            >
-              <option value="">独立事项</option>
-              {projects.map((p) => (
-                <option value={p.id} key={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            发生时间
-            <input
-              required
-              type="datetime-local"
-              value={occurredAt}
-              onChange={(e) => setOccurredAt(e.target.value)}
-              disabled={!writable || Boolean(item.deletedAt)}
-            />
-          </label>
-          <label>
-            截止时间
-            <input
-              type="datetime-local"
-              value={dueAt}
-              onChange={(e) => setDueAt(e.target.value)}
-              disabled={!writable || Boolean(item.deletedAt)}
-            />
-          </label>
-          <label>
-            提醒时间
-            <input
-              type="datetime-local"
-              value={reminderAt}
-              onChange={(e) => setReminderAt(e.target.value)}
-              disabled={!writable || Boolean(item.deletedAt)}
-            />
-          </label>
-        </div>
+        <details className="detail-disclosure" open>
+          <summary>
+            <span>分类与时间</span>
+            <small>
+              {quadrantNames[quadrant]} ·{' '}
+              {projects.find((project) => project.id === projectId)?.name || '独立事项'}
+            </small>
+          </summary>
+          <div className="form-grid">
+            <label>
+              象限
+              <select
+                value={quadrant}
+                onChange={(e) => setQuadrant(Number(e.target.value))}
+                disabled={!writable || Boolean(item.deletedAt)}
+              >
+                {quadrantNames.map((label, i) => (
+                  <option value={i} key={i}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              项目
+              <select
+                value={projectId}
+                onChange={(e) => setProjectId(e.target.value)}
+                disabled={!writable || Boolean(item.deletedAt)}
+              >
+                <option value="">独立事项</option>
+                {projects.map((p) => (
+                  <option value={p.id} key={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              发生时间
+              <input
+                required
+                type="datetime-local"
+                value={occurredAt}
+                onChange={(e) => setOccurredAt(e.target.value)}
+                disabled={!writable || Boolean(item.deletedAt)}
+              />
+            </label>
+            <label>
+              截止时间
+              <input
+                type="datetime-local"
+                value={dueAt}
+                onChange={(e) => setDueAt(e.target.value)}
+                disabled={!writable || Boolean(item.deletedAt)}
+              />
+            </label>
+            <label>
+              提醒时间
+              <input
+                type="datetime-local"
+                value={reminderAt}
+                onChange={(e) => setReminderAt(e.target.value)}
+                disabled={!writable || Boolean(item.deletedAt)}
+              />
+            </label>
+          </div>
+        </details>
         <div className="panel-actions">
           <button
             type="button"
@@ -2331,108 +2298,120 @@ function DetailPanel({
             保存修改 <Check size={16} />
           </button>
         </div>
-        <div className="detail-utilities">
-          <button
-            type="button"
-            className="text-button"
-            disabled={
-              !writable ||
-              Boolean(item.deletedAt) ||
-              busy ||
-              item.status === 'done' ||
-              Boolean(item.archivedAt)
-            }
-            onClick={onSnooze}
-          >
-            <Clock size={14} />
-            一小时后提醒
-          </button>
-          <button
-            type="button"
-            className="text-button"
-            disabled={!writable || Boolean(item.deletedAt) || busy}
-            onClick={() => onSave({ archived: !item.archivedAt })}
-          >
-            {item.archivedAt ? <Undo2 size={14} /> : <Archive size={14} />}{' '}
-            {item.archivedAt ? '恢复事项' : '归档保留'}
-          </button>
-        </div>
-      </form>
-      {writable && !item.deletedAt && (
-        <section className={`detail-danger ${confirmDelete ? 'is-confirming' : ''}`}>
-          <div className="detail-danger-copy">
-            <span className="detail-danger-icon" aria-hidden="true">
-              <Trash2 size={16} />
-            </span>
-            <div>
-              <h3>移出当前宇宙</h3>
-              <p>
-                {item.parentId
-                  ? '删除后将停止提醒，并可从时光回放恢复。'
-                  : `删除后将停止提醒${items.some((child) => child.parentId === item.id) ? '，子事项也会一同移出' : ''}，仍可从时光回放恢复。`}
-              </p>
-            </div>
-          </div>
-          {confirmDelete ? (
-            <div className="detail-danger-confirm" role="group" aria-label="确认删除事项">
-              <span>确认删除这颗星体？</span>
-              <div>
-                <button
-                  type="button"
-                  className="secondary-button"
-                  disabled={busy}
-                  onClick={() => setConfirmDelete(false)}
-                >
-                  取消
-                </button>
-                <button
-                  type="button"
-                  className="delete-item-button is-confirm"
-                  disabled={busy}
-                  onClick={onDelete}
-                >
-                  <Trash2 size={14} />
-                  确认删除
-                </button>
-              </div>
-            </div>
-          ) : (
+        <details className="detail-disclosure detail-more-actions">
+          <summary>更多操作</summary>
+          <div className="detail-utilities">
             <button
               type="button"
-              className="delete-item-button"
-              disabled={busy}
-              onClick={() => setConfirmDelete(true)}
+              className="text-button"
+              disabled={
+                !writable ||
+                Boolean(item.deletedAt) ||
+                busy ||
+                item.status === 'done' ||
+                Boolean(item.archivedAt)
+              }
+              onClick={onSnooze}
             >
-              <Trash2 size={14} />
-              删除事项{item.parentId ? '' : '及子事项'}
+              <Clock size={14} />
+              一小时后提醒
             </button>
-          )}
+            <button
+              type="button"
+              className="text-button"
+              disabled={!writable || Boolean(item.deletedAt) || busy}
+              onClick={() => onSave({ archived: !item.archivedAt })}
+            >
+              {item.archivedAt ? <Undo2 size={14} /> : <Archive size={14} />}{' '}
+              {item.archivedAt ? '恢复事项' : '归档保留'}
+            </button>
+          </div>
+        </details>
+      </form>
+      {writable && !item.deletedAt && (
+        <details className="detail-danger-disclosure">
+          <summary
+            aria-label={`删除事项${item.parentId ? '' : '及子事项'}`}
+            onClick={() => setConfirmDelete(true)}
+          >
+            删除事项{item.parentId ? '' : '及子事项'}
+          </summary>
+          <section className={`detail-danger ${confirmDelete ? 'is-confirming' : ''}`}>
+            <div className="detail-danger-copy">
+              <span className="detail-danger-icon" aria-hidden="true">
+                <Trash2 size={16} />
+              </span>
+              <div>
+                <h3>移出当前宇宙</h3>
+                <p>
+                  {item.parentId
+                    ? '删除后将停止提醒，并可从时光回放恢复。'
+                    : `删除后将停止提醒${items.some((child) => child.parentId === item.id) ? '，子事项也会一同移出' : ''}，仍可从时光回放恢复。`}
+                </p>
+              </div>
+            </div>
+            {confirmDelete ? (
+              <div className="detail-danger-confirm" role="group" aria-label="确认删除事项">
+                <span>确认删除这颗星体？</span>
+                <div>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={busy}
+                    onClick={() => setConfirmDelete(false)}
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    className="delete-item-button is-confirm"
+                    disabled={busy}
+                    onClick={onDelete}
+                  >
+                    <Trash2 size={14} />
+                    确认删除
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="delete-item-button"
+                disabled={busy}
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Trash2 size={14} />
+                删除事项{item.parentId ? '' : '及子事项'}
+              </button>
+            )}
+          </section>
+        </details>
+      )}
+      {items.some((child) => child.parentId === item.id) && (
+        <section className="detail-section">
+          <h3>小步前进</h3>
+          {items
+            .filter((x) => x.parentId === item.id)
+            .map((child) => (
+              <button key={child.id} className="child-item" onClick={() => onSelect(child)}>
+                {child.status === 'done' ? <Check size={15} /> : <ChevronRight size={15} />}{' '}
+                {child.title}
+              </button>
+            ))}
         </section>
       )}
-      <section className="detail-section">
-        <h3>小步前进</h3>
-        {items
-          .filter((x) => x.parentId === item.id)
-          .map((child) => (
-            <button key={child.id} className="child-item" onClick={() => onSelect(child)}>
-              {child.status === 'done' ? <Check size={15} /> : <ChevronRight size={15} />}{' '}
-              {child.title}
-            </button>
+      <details className="detail-history">
+        <summary>行动足迹 · {events.length}</summary>
+        <div>
+          {events.map((e) => (
+            <div className="detail-event" key={e.id}>
+              <span>{eventsLabel[e.type] || e.type}</span>
+              <time>{shortDate(e.createdAt, zone)}</time>
+            </div>
           ))}
-        {!items.some((x) => x.parentId === item.id) && (
-          <p>还没有子事项。试着让 AI 帮你拆出下一步。</p>
-        )}
-      </section>
-      <section className="detail-section">
-        <h3>行动足迹</h3>
-        {events.map((e) => (
-          <div className="detail-event" key={e.id}>
-            <span>{eventsLabel[e.type] || e.type}</span>
-            <time>{shortDate(e.createdAt, zone)}</time>
-          </div>
-        ))}
-        {item.completedAt && <p>完成时间：{shortDate(item.completedAt, zone)}</p>}
-      </section>
+          {item.completedAt && <p>完成时间：{shortDate(item.completedAt, zone)}</p>}
+        </div>
+      </details>
     </Panel>
   );
 }

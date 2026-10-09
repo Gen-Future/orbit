@@ -1032,3 +1032,109 @@
   display: flex;
   flex-direction: row;
 }
+
+/* Keep the report surface focused on the current week and its next action. */
+.report-foundry {
+  max-width: 1280px;
+}
+.foundry-heading {
+  margin-bottom: 18px;
+}
+.foundry-heading h1 {
+  font-size: clamp(24px, 2.2vw, 32px);
+  letter-spacing: -0.02em;
+}
+.foundry-heading p {
+  margin-top: 4px;
+}
+.foundry-heading > div:last-child {
+  gap: 4px;
+}
+.foundry-heading .icon-button {
+  min-width: 38px;
+  min-height: 38px;
+}
+.foundry-week {
+  padding: 12px 0 10px;
+  margin-bottom: 18px;
+}
+.foundry-week-heading {
+  margin-bottom: 10px;
+}
+.foundry-week-heading strong {
+  font-size: 15px;
+}
+.foundry-days {
+  gap: 5px;
+}
+.foundry-day {
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  background: transparent;
+}
+.foundry-day.is-today {
+  border-color: #53682c;
+}
+.foundry-day > strong {
+  font-size: 23px;
+}
+.foundry-day-pulse {
+  margin-top: 8px;
+  opacity: 0.45;
+}
+.foundry-day em {
+  margin-top: 4px;
+}
+.foundry-workspace {
+  gap: 22px;
+}
+.foundry-materials > header,
+.foundry-editor > header {
+  padding-bottom: 12px;
+}
+.foundry-selection-tools {
+  padding: 9px 0;
+}
+.foundry-editor {
+  border-radius: 8px;
+}
+.foundry-editor > header {
+  padding: 16px 20px;
+}
+.foundry-editor textarea {
+  min-height: 500px;
+  padding: 22px;
+}
+.foundry-blank {
+  min-height: 500px;
+  padding: 48px 22px;
+}
+.foundry-blank h3 {
+  font-size: 26px;
+  margin-top: 24px;
+}
+.foundry-evidence {
+  margin-inline: 20px;
+  padding-block: 15px;
+}
+.foundry-next {
+  padding: 17px 20px;
+}
+
+@media (max-width: 700px) {
+  .foundry-heading h1 {
+    font-size: 26px;
+  }
+  .foundry-heading p {
+    margin-top: 2px;
+  }
+  .foundry-day {
+    padding: 7px 3px;
+  }
+  .foundry-day > strong {
+    font-size: 20px;
+  }
+  .foundry-editor {
+    border-radius: 8px;
+  }
+}

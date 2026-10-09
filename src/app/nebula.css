@@ -2362,3 +2362,143 @@
   padding: 12px;
   background: transparent;
 }
+
+/* Distilled home: the map carries the hierarchy; tools stay quiet until requested. */
+.nebula-header {
+  min-height: 60px;
+  padding: 8px 20px;
+  gap: 14px;
+  border-bottom: 1px solid #263244;
+}
+.nebula-cockpit {
+  min-height: 44px;
+  padding-right: 10px;
+}
+.nebula-cockpit > span:first-of-type {
+  font-size: 23px;
+}
+.nebula-cockpit > svg:last-of-type,
+.nebula-cockpit-label {
+  display: none;
+}
+.nebula-heading h1 {
+  color: #9faec2;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.nebula-header-actions {
+  gap: 4px;
+}
+.nebula-quiet-button,
+.nebula-header-actions .primary-button {
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 10px;
+}
+.nebula-quiet-button span,
+.nebula-header-actions .primary-button span {
+  display: none;
+}
+.nebula-quiet-button:hover,
+.nebula-quiet-button:focus-visible {
+  background: #182231;
+}
+.nebula-header-actions .primary-button {
+  color: #17210b;
+}
+.nebula-filters {
+  padding: 12px 20px;
+  background: #0c111a;
+  border-bottom: 1px solid #263244;
+}
+.nebula-map-shell {
+  border-top: 0;
+}
+.nebula-q-code,
+.nebula-quadrant p {
+  display: none;
+}
+.nebula-quadrant-heading {
+  gap: 7px;
+}
+.nebula-quadrant h2 {
+  font-size: 13px;
+  font-weight: 500;
+}
+.nebula-q-count {
+  color: color-mix(in srgb, currentColor 65%, transparent);
+}
+.nebula-intent {
+  width: min(660px, calc(100% - 32px));
+  margin-top: 10px;
+  border-color: #2b3940;
+  background: #131c20;
+}
+.nebula-intent > svg {
+  opacity: 0.7;
+}
+.nebula-map-controls {
+  margin: 0 20px;
+  opacity: 0.52;
+  transition: opacity 160ms ease-out;
+}
+.nebula-map-controls:hover,
+.nebula-map-controls:focus-within {
+  opacity: 1;
+}
+.nebula-footer {
+  min-height: 34px;
+  padding: 0 20px 4px;
+}
+.nebula-help-toggle {
+  color: #8292a8;
+}
+.nebula-pagination {
+  color: #8292a8;
+}
+
+@media (max-width: 700px) {
+  .nebula-header {
+    min-height: 56px;
+    padding: 6px 12px;
+  }
+  .nebula-cockpit > svg:first-child {
+    width: 24px;
+    height: 24px;
+  }
+  .nebula-cockpit > span:first-of-type {
+    font-size: 21px;
+  }
+  .nebula-header-actions {
+    gap: 2px;
+  }
+  .nebula-quiet-button,
+  .nebula-header-actions .primary-button {
+    width: 40px;
+    min-width: 40px;
+    height: 44px;
+  }
+  .nebula-filters {
+    padding: 8px 12px 10px;
+  }
+  .nebula-quadrant {
+    padding: 12px;
+  }
+  .nebula-q-count {
+    display: none;
+  }
+  .nebula-intent {
+    margin-top: 8px;
+  }
+  .nebula-map-controls {
+    margin: 0 8px;
+  }
+  .nebula-footer {
+    min-height: 38px;
+    padding: 0 8px calc(2px + env(safe-area-inset-bottom));
+  }
+}

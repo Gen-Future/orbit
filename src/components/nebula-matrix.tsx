@@ -75,10 +75,10 @@ type Flight = {
   quadrant: number;
 };
 const QUADRANTS = [
-  { id: 3, title: '应变星区', action: '快速响应', detail: '不重要 · 紧急' },
-  { id: 1, title: '行动星区', action: '立即行动', detail: '重要 · 紧急' },
-  { id: 4, title: '留白星区', action: '暂时放下', detail: '不重要 · 不紧急' },
-  { id: 2, title: '生长星区', action: '安排时间', detail: '重要 · 不紧急' },
+  { id: 3, title: '应变星区', action: '快速处理', detail: '不重要 · 紧急' },
+  { id: 1, title: '行动星区', action: '现在行动', detail: '重要 · 紧急' },
+  { id: 4, title: '留白星区', action: '留到以后', detail: '不重要 · 不紧急' },
+  { id: 2, title: '生长星区', action: '安排推进', detail: '重要 · 不紧急' },
 ];
 const STATUS_META: Record<string, { label: string; cosmic: string }> = {
   open: { label: '待开始', cosmic: '静候' },
@@ -539,6 +539,7 @@ export function NebulaMatrix<T extends NebulaItem>({
           onClick={onManage}
           aria-label="打开工作舱"
           aria-controls="main-navigation"
+          title="打开工作舱"
         >
           <Orbit size={27} />
           <span>
@@ -548,22 +549,25 @@ export function NebulaMatrix<T extends NebulaItem>({
           <span className="nebula-cockpit-label">工作舱</span>
         </button>
         <div className="nebula-heading">
-          <h1>
-            你的注意力宇宙<span>。</span>
-          </h1>
-          <p>{workspaceName}</p>
+          <h1>{workspaceName}</h1>
         </div>
         <div className="nebula-header-actions">
           <button
             className="nebula-quiet-button"
             aria-label="星图筛选"
+            title="筛选星体"
             aria-expanded={filtersOpen}
             onClick={() => setFiltersOpen(!filtersOpen)}
           >
             <SlidersHorizontal size={18} />
             <span>筛选</span>
           </button>
-          <button className="nebula-quiet-button" aria-label="通知" onClick={onNotifications}>
+          <button
+            className="nebula-quiet-button"
+            aria-label="通知"
+            title="通知"
+            onClick={onNotifications}
+          >
             <Bell size={18} />
             {notificationCount > 0 && <span className="nebula-notification-dot" />}
           </button>
@@ -571,12 +575,18 @@ export function NebulaMatrix<T extends NebulaItem>({
             className="nebula-quiet-button"
             onClick={onImmersive}
             aria-label={immersive ? '退出沉浸模式' : '进入沉浸模式'}
+            title={immersive ? '退出沉浸模式' : '进入沉浸模式'}
           >
             {immersive ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
             <span>{immersive ? '退出沉浸' : '沉浸模式'}</span>
           </button>
           {writable && (
-            <button className="primary-button" aria-label="放入星图" onClick={() => onAdd(2)}>
+            <button
+              className="primary-button nebula-add-button"
+              aria-label="放入星图"
+              title="放入星图"
+              onClick={() => onAdd(2)}
+            >
               <Plus size={16} />
               <span>放入星图</span>
             </button>
@@ -721,10 +731,7 @@ export function NebulaMatrix<T extends NebulaItem>({
                     {candidates.filter((item) => item.quadrant === q.id).length}
                   </span>
                 </div>
-                <p>
-                  {q.detail}
-                  <span> / {q.action}</span>
-                </p>
+                <p>{q.action}</p>
               </div>
             ))}
             <svg
@@ -952,10 +959,6 @@ export function NebulaMatrix<T extends NebulaItem>({
             <span className="flight-title">{flight.title}</span>
           </div>
         )}
-        <div className="nebula-map-caption">
-          <span className="nebula-live-dot" />
-          {resolving ? '正在保存' : pending ? '正在保存坐标' : '截止引力已开启'}
-        </div>
       </div>
       {writable && (
         <form
@@ -991,11 +994,15 @@ export function NebulaMatrix<T extends NebulaItem>({
         </button>
       </div>
       <footer className="nebula-footer">
-        <button className="nebula-help-toggle" onClick={() => setHelp(!help)} aria-expanded={help}>
+        <button
+          className="nebula-help-toggle"
+          title="查看星图操作"
+          onClick={() => setHelp(!help)}
+          aria-expanded={help}
+        >
           <Move size={14} />
-          <span>{writable ? '拖入太阳完成 · 黑洞删除' : '只读星图 · 点击查看'}</span>
+          <span>{writable ? '操作' : '查看操作'}</span>
         </button>
-        <span className="nebula-drift-note">越近截止，越向上靠近紧急方向。</span>
         <div className="nebula-pagination">
           <span>
             {candidates.length ? `${visible.length}` : '0'} / {candidates.length} 颗星
