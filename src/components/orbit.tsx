@@ -159,6 +159,23 @@ type AIEndpointView = {
   hasKey: boolean;
   updatedAt: string;
 };
+type AIFallbackReason =
+  | 'unconfigured'
+  | 'timeout'
+  | 'cancelled'
+  | 'authentication'
+  | 'rate_limited'
+  | 'network'
+  | 'provider_error'
+  | 'invalid_response'
+  | 'invalid_json'
+  | 'invalid_output';
+type AIDraftResult = {
+  draft: CaptureDraft;
+  mode: 'ai' | 'rules';
+  fallbackReason: AIFallbackReason | null;
+  message: string;
+};
 type AdminOverview = {
   totals: {
     users: number;
@@ -172,6 +189,7 @@ type AdminOverview = {
     activeUsers: number;
   };
   activity: { date: string; created: number; completed: number }[];
+  aiFailures: { reason: string; count: number }[];
   recentUsers: {
     id: string;
     name: string;
@@ -210,6 +228,18 @@ const statusOptions = [
   { value: 'blocked', label: '已阻塞', cosmic: '受阻', icon: Ban },
   { value: 'done', label: '已完成', cosmic: '余辉', icon: Check },
 ] as const;
+const fallbackReasonLabels: Record<AIFallbackReason, string> = {
+  unconfigured: '模型尚未配置',
+  timeout: '模型响应超时',
+  cancelled: '请求已取消',
+  authentication: '端点鉴权失败',
+  rate_limited: '端点当前繁忙',
+  network: '端点连接失败',
+  provider_error: '模型服务异常',
+  invalid_response: '返回内容不完整',
+  invalid_json: '返回内容无法读取',
+  invalid_output: '建议未通过校验',
+};
 const eventsLabel: Record<string, string> = {
   created: '记录了事项',
   updated: '调整了事项',
@@ -254,6 +284,7 @@ async function api<T = Record<string, unknown>>(
   path: string,
   method = 'GET',
   data?: unknown,
+  options?: { signal?: AbortSignal },
 ): Promise<T> {
   const response = await fetch(`/api/v1/${path}`, {
     method,
@@ -262,6 +293,7 @@ async function api<T = Record<string, unknown>>(
       ...(method !== 'GET' ? { 'Idempotency-Key': crypto.randomUUID() } : {}),
     },
     ...(data !== undefined ? { body: JSON.stringify(data) } : {}),
+    signal: options?.signal,
   });
   let result;
   try {
@@ -387,6 +419,8 @@ export default function Orbit() {
   const [intent, setIntent] = useState(''),
     [draft, setDraft] = useState<CaptureDraft | null>(null),
     [draftMode, setDraftMode] = useState('manual'),
+    [draftNotice, setDraftNotice] = useState(''),
+    [draftFallbackReason, setDraftFallbackReason] = useState<AIFallbackReason | null>(null),
     [draftFor, setDraftFor] = useState<Item | null>(null),
     [busy, setBusy] = useState(''),
     [toast, setToast] = useState(''),
@@ -412,6 +446,14 @@ export default function Orbit() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const menuRef = useRef<HTMLButtonElement>(null);
+  const workspaceIdRef = useRef(wid);
+  workspaceIdRef.current = wid;
+  const aiRequestRef = useRef<{
+    id: number;
+    workspaceId: string;
+    controller: AbortController;
+  } | null>(null);
+  const aiFlowRef = useRef(0);
   const selectedWorkspace = memberships.find((m) => m.workspace.id === wid);
   const workspace = selectedWorkspace?.workspace;
   const role = selectedWorkspace?.role || 'viewer';
@@ -516,11 +558,18 @@ export default function Orbit() {
   }, [boot]);
   useEffect(() => {
     if (wid) {
+      aiRequestRef.current?.controller.abort();
+      aiRequestRef.current = null;
+      aiFlowRef.current++;
+      setBusy((current) => (current === 'capture' || current === 'decompose' ? '' : current));
+      setAiSignal(null);
       localStorage.setItem('orbit.workspace', wid);
       setSelected(null);
       setUndoDeleted(null);
       setStellarOutcome(null);
       setDraft(null);
+      setDraftNotice('');
+      setDraftFallbackReason(null);
       setProjectFilter('');
       setSelectedProjectId(null);
       setItems([]);
@@ -599,6 +648,8 @@ export default function Orbit() {
           });
           setDraftFor(null);
           setDraftMode('manual');
+          setDraftNotice('');
+          setDraftFallbackReason(null);
         }
       }
       if (e.key === 'Escape') {
@@ -697,6 +748,48 @@ export default function Orbit() {
       setError((e as Error).message);
     } finally {
       setBusy('');
+    }
+  }
+  function cancelAIRequest() {
+    if (!aiRequestRef.current) return;
+    aiRequestRef.current.controller.abort();
+    aiRequestRef.current = null;
+    aiFlowRef.current++;
+    setBusy((current) => (current === 'capture' || current === 'decompose' ? '' : current));
+    setAiSignal(null);
+    notify('已取消本次 AI 整理。');
+  }
+  async function requestAIDraft(
+    label: 'capture' | 'decompose',
+    payload: { text?: string; itemId?: string; skillId?: string },
+  ): Promise<{ result: AIDraftResult; requestId: number } | null> {
+    if (busy) return null;
+    const requestId = ++aiFlowRef.current;
+    const request = {
+      id: requestId,
+      workspaceId: wid,
+      controller: new AbortController(),
+    };
+    aiRequestRef.current?.controller.abort();
+    aiRequestRef.current = request;
+    setBusy(label);
+    setError('');
+    try {
+      const result = await api<AIDraftResult>(`${prefix}/ai`, 'POST', payload, {
+        signal: request.controller.signal,
+      });
+      if (aiRequestRef.current?.id !== request.id || workspaceIdRef.current !== request.workspaceId)
+        return null;
+      return { result, requestId };
+    } catch (cause) {
+      if (!(cause instanceof Error && cause.name === 'AbortError'))
+        setError((cause as Error).message);
+      return null;
+    } finally {
+      if (aiRequestRef.current?.id === request.id) {
+        aiRequestRef.current = null;
+        setBusy('');
+      }
     }
   }
   async function patch(item: Item, changes: Record<string, unknown>): Promise<boolean> {
@@ -805,29 +898,44 @@ export default function Orbit() {
   }
   async function parseIntent(text = intent) {
     if (!text.trim() || busy) return;
+    const requestWorkspace = wid;
     setAiSignal({ phase: 'listening', serial: Date.now() });
-    try {
-      await run('capture', async () => {
-        const result = await api<{ draft: CaptureDraft; mode: string; message: string }>(
-          `${prefix}/ai`,
-          'POST',
-          { text },
-        );
-        setAiSignal({
-          phase: 'resolved',
-          quadrant: result.draft.quadrant,
-          title: result.draft.title,
-          serial: Date.now(),
-        });
-        await new Promise((resolve) => window.setTimeout(resolve, reduced ? 120 : 640));
-        setDraft(result.draft);
-        setDraftMode(result.mode);
-        setDraftFor(null);
-        if (result.mode !== 'ai') notify(result.message);
-      });
-    } finally {
+    const response = await requestAIDraft('capture', { text });
+    if (!response) {
       setAiSignal(null);
+      return;
     }
+    const { result, requestId } = response;
+    if (aiFlowRef.current !== requestId) return;
+    setAiSignal({
+      phase: 'resolved',
+      quadrant: result.draft.quadrant,
+      title: result.draft.title,
+      serial: Date.now(),
+    });
+    await new Promise((resolve) => window.setTimeout(resolve, reduced ? 120 : 640));
+    if (workspaceIdRef.current !== requestWorkspace || aiFlowRef.current !== requestId) return;
+    setDraft(result.draft);
+    setDraftMode(result.mode);
+    setDraftNotice(result.message);
+    setDraftFallbackReason(result.fallbackReason);
+    setDraftFor(null);
+    setAiSignal(null);
+  }
+  async function decomposeItem(item: Item) {
+    const requestWorkspace = wid;
+    const response = await requestAIDraft('decompose', {
+      itemId: item.id,
+      skillId: 'break-down-task',
+    });
+    if (!response || workspaceIdRef.current !== requestWorkspace) return;
+    const { result, requestId } = response;
+    if (aiFlowRef.current !== requestId) return;
+    setDraft(result.draft);
+    setDraftFor(item);
+    setDraftMode(result.mode);
+    setDraftNotice(result.message);
+    setDraftFallbackReason(result.fallbackReason);
   }
   async function saveDraft(value: CaptureDraft) {
     await run('save-draft', async () => {
@@ -839,6 +947,8 @@ export default function Orbit() {
       } else await api(`${prefix}/capture`, 'POST', { ...value, source: draftMode });
       setDraft(null);
       setDraftFor(null);
+      setDraftNotice('');
+      setDraftFallbackReason(null);
       setIntent('');
       notify('已进入轨道，随时可以继续推进。');
       await refresh();
@@ -988,6 +1098,7 @@ export default function Orbit() {
           <select
             id="workspace"
             value={wid}
+            disabled={busy === 'capture' || busy === 'decompose'}
             onChange={(e) => {
               setWid(e.target.value);
               setMobileNav(false);
@@ -1162,6 +1273,7 @@ export default function Orbit() {
                   placeholder="比如：周五前完成产品方案，明天下午三点提醒我…"
                   aria-label="自然语言记录事项"
                   rows={2}
+                  maxLength={12000}
                   disabled={!writable}
                 />
                 <div className="intent-footer">
@@ -1183,21 +1295,21 @@ export default function Orbit() {
                         });
                         setDraftFor(null);
                         setDraftMode('manual');
+                        setDraftNotice('');
+                        setDraftFallbackReason(null);
                       }}
                     >
                       手动记录
                     </button>
                     <button
                       className="primary-button capture-button"
-                      disabled={!intent.trim() || Boolean(busy) || !writable}
-                      onClick={() => parseIntent()}
+                      disabled={
+                        !writable || (busy !== 'capture' && (!intent.trim() || Boolean(busy)))
+                      }
+                      onClick={() => (busy === 'capture' ? cancelAIRequest() : parseIntent())}
                     >
-                      {busy === 'capture' ? (
-                        <LoaderCircle className="spin" size={16} />
-                      ) : (
-                        <ArrowUp size={18} />
-                      )}
-                      <span>进入轨道</span>
+                      {busy === 'capture' ? <X size={16} /> : <ArrowUp size={18} />}
+                      <span>{busy === 'capture' ? '取消整理' : '进入轨道'}</span>
                     </button>
                   </div>
                 </div>
@@ -1288,6 +1400,8 @@ export default function Orbit() {
                         });
                         setDraftFor(null);
                         setDraftMode('manual');
+                        setDraftNotice('');
+                        setDraftFallbackReason(null);
                       }}
                     >
                       <Plus size={16} />
@@ -1431,6 +1545,8 @@ export default function Orbit() {
                           });
                           setDraftFor(null);
                           setDraftMode('manual');
+                          setDraftNotice('');
+                          setDraftFallbackReason(null);
                         }}
                       >
                         <Plus size={17} />
@@ -1511,6 +1627,7 @@ export default function Orbit() {
                     now={now}
                     writable={writable}
                     busy={Boolean(busy)}
+                    captureBusy={busy === 'capture'}
                     zone={zone}
                     projects={activeProjects}
                     immersive={matrixImmersive}
@@ -1529,6 +1646,7 @@ export default function Orbit() {
                     intent={intent}
                     onIntent={setIntent}
                     onCapture={() => parseIntent()}
+                    onCancelCapture={cancelAIRequest}
                     onSelect={setSelected}
                     onAdd={(quadrant) => {
                       setDraft({
@@ -1540,6 +1658,8 @@ export default function Orbit() {
                       });
                       setDraftFor(null);
                       setDraftMode('manual');
+                      setDraftNotice('');
+                      setDraftFallbackReason(null);
                     }}
                     onInbox={() => setTab('inbox')}
                     sediment={sedimentSummary}
@@ -1606,6 +1726,8 @@ export default function Orbit() {
                     });
                     setDraftFor(null);
                     setDraftMode('manual');
+                    setDraftNotice('');
+                    setDraftFallbackReason(null);
                   }}
                 />
               )}
@@ -1743,6 +1865,8 @@ export default function Orbit() {
               });
               setDraftFor(null);
               setDraftMode('manual');
+              setDraftNotice('');
+              setDraftFallbackReason(null);
             }}
           >
             <Plus size={22} />
@@ -1755,11 +1879,24 @@ export default function Orbit() {
           key={draftFor?.id || 'new'}
           initial={draft}
           mode={draftMode}
+          notice={draftNotice}
+          fallbackReason={draftFallbackReason}
           editing={Boolean(draftFor)}
+          original={draftFor}
           projects={activeProjects}
           zone={zone}
           busy={Boolean(busy)}
-          onClose={() => setDraft(null)}
+          onClose={() => {
+            setDraft(null);
+            setDraftNotice('');
+            setDraftFallbackReason(null);
+          }}
+          onRetry={() => {
+            const item = draftFor;
+            setDraft(null);
+            if (item) void decomposeItem(item);
+            else void parseIntent();
+          }}
           onSave={saveDraft}
         />
       )}
@@ -1775,6 +1912,7 @@ export default function Orbit() {
           events={selectedEvents}
           writable={writable}
           busy={Boolean(busy)}
+          aiBusy={busy === 'decompose'}
           onClose={() => setSelected(null)}
           onSave={(changes) => patch(selected, changes)}
           onDelete={() => deleteItem(selected)}
@@ -1792,19 +1930,8 @@ export default function Orbit() {
               await refresh();
             })
           }
-          onAI={() =>
-            run('decompose', async () => {
-              const result = await api<{ draft: CaptureDraft; mode: string; message: string }>(
-                `${prefix}/ai`,
-                'POST',
-                { itemId: selected.id, skillId: 'break-down-task' },
-              );
-              setDraft(result.draft);
-              setDraftFor(selected);
-              setDraftMode(result.mode);
-              if (result.mode !== 'ai') notify(result.message);
-            })
-          }
+          onAI={() => void decomposeItem(selected)}
+          onCancelAI={cancelAIRequest}
         />
       )}
       {undoDeleted && (
@@ -2110,24 +2237,53 @@ function Panel({
 function DraftPanel({
   initial,
   mode,
+  notice,
+  fallbackReason,
   editing,
+  original,
   projects,
   zone,
   busy,
   onClose,
+  onRetry,
   onSave,
 }: {
   initial: CaptureDraft;
   mode: string;
+  notice: string;
+  fallbackReason: AIFallbackReason | null;
   editing: boolean;
+  original: Item | null;
   projects: Project[];
   zone: string;
   busy: boolean;
   onClose: () => void;
+  onRetry: () => void;
   onSave: (draft: CaptureDraft) => void;
 }) {
   const [value, setValue] = useState(initial),
     [subtasks, setSubtasks] = useState(initial.subtasks.join('\n'));
+  const subtaskRows = subtasks
+    .split('\n')
+    .map((title) => title.trim())
+    .filter(Boolean);
+  const timingProblem = value.reminderAt
+    ? Date.parse(value.reminderAt) <= Date.now()
+      ? '提醒时间需要晚于当前时间'
+      : value.dueAt && Date.parse(value.reminderAt) > Date.parse(value.dueAt)
+        ? '提醒时间不能晚于截止时间'
+        : ''
+    : '';
+  const changes = original
+    ? [
+        initial.title !== original.title && '标题',
+        initial.notes !== original.notes && '说明',
+        initial.quadrant !== original.quadrant && '注意力坐标',
+        (initial.projectId || null) !== original.projectId && '所属项目',
+        (initial.dueAt || null) !== original.dueAt && '截止时间',
+        initial.subtasks.length > 0 && `${initial.subtasks.length} 个新步骤`,
+      ].filter(Boolean)
+    : [];
   return (
     <Panel
       title={editing ? '把下一步，变清楚。' : '让想法，进入轨道。'}
@@ -2140,16 +2296,36 @@ function DraftPanel({
       }
       onClose={onClose}
     >
+      {mode !== 'manual' && (
+        <div className={`ai-draft-status is-${mode}`} role="status">
+          <span className="ai-draft-status-icon">
+            {mode === 'ai' ? <Sparkles size={17} /> : <RefreshCw size={17} />}
+          </span>
+          <div>
+            <strong>{mode === 'ai' ? 'AI 建议已通过完整性校验' : '当前是规则草稿'}</strong>
+            <p>{notice || '请核对内容后再保存。'}</p>
+            {fallbackReason && <small>降级原因：{fallbackReasonLabels[fallbackReason]}</small>}
+          </div>
+          {mode === 'rules' && (
+            <button type="button" className="text-button" disabled={busy} onClick={onRetry}>
+              重新尝试 AI
+            </button>
+          )}
+        </div>
+      )}
+      {changes.length > 0 && (
+        <div className="ai-change-preview">
+          <span>确认后将更新</span>
+          <p>{changes.join(' · ')}</p>
+        </div>
+      )}
       <form
         className="panel-form"
         onSubmit={(e) => {
           e.preventDefault();
           onSave({
             ...value,
-            subtasks: subtasks
-              .split('\n')
-              .map((x) => x.trim())
-              .filter(Boolean),
+            subtasks: subtaskRows,
           });
         }}
       >
@@ -2232,6 +2408,7 @@ function DraftPanel({
           />
         </div>
         <p className="field-note">时间按工作空间时区 {zone} 保存。</p>
+        {timingProblem && <p className="field-error">{timingProblem}</p>}
         <label>
           拆成小步 <span className="muted">每行一个，最多 12 个</span>
           <textarea
@@ -2240,12 +2417,20 @@ function DraftPanel({
             onChange={(e) => setSubtasks(e.target.value)}
             placeholder="先明确目标\n准备所需材料\n完成第一版"
           />
+          {subtaskRows.length > 12 && (
+            <span className="field-error">已输入 {subtaskRows.length} 个步骤，最多保留 12 个</span>
+          )}
         </label>
         <div className="panel-actions">
           <button type="button" className="secondary-button" onClick={onClose}>
             再想想
           </button>
-          <button className="primary-button" disabled={busy || !value.title.trim()}>
+          <button
+            className="primary-button"
+            disabled={
+              busy || !value.title.trim() || Boolean(timingProblem) || subtaskRows.length > 12
+            }
+          >
             {busy ? <LoaderCircle size={16} className="spin" /> : <ArrowUpRight size={17} />}确认
             {editing ? '更新' : '记录'}
           </button>
@@ -2262,11 +2447,13 @@ function DetailPanel({
   zone,
   writable,
   busy,
+  aiBusy,
   onClose,
   onSave,
   onSelect,
   onSnooze,
   onAI,
+  onCancelAI,
   onDelete,
   onRestore,
   onReport,
@@ -2278,11 +2465,13 @@ function DetailPanel({
   zone: string;
   writable: boolean;
   busy: boolean;
+  aiBusy: boolean;
   onClose: () => void;
   onSave: (data: Record<string, unknown>) => void;
   onSelect: (item: Item) => void;
   onSnooze: () => void;
   onAI: () => void;
+  onCancelAI: () => void;
   onDelete: () => void;
   onRestore: () => void;
   onReport: (id: string) => void;
@@ -2469,11 +2658,11 @@ function DetailPanel({
           <button
             type="button"
             className="secondary-button"
-            onClick={onAI}
-            disabled={!writable || Boolean(item.deletedAt) || busy}
+            onClick={aiBusy ? onCancelAI : onAI}
+            disabled={!writable || Boolean(item.deletedAt) || (busy && !aiBusy)}
           >
-            <Sparkles size={15} />
-            AI 拆解
+            {aiBusy ? <X size={15} /> : <Sparkles size={15} />}
+            {aiBusy ? '取消拆解' : 'AI 拆解'}
           </button>
           <button
             className="primary-button"
@@ -3185,6 +3374,13 @@ function AdminPanel({
   );
   const aiTotal = (overview?.totals.aiSucceeded || 0) + (overview?.totals.aiFailed || 0);
   const aiRate = aiTotal ? Math.round(((overview?.totals.aiSucceeded || 0) / aiTotal) * 100) : 100;
+  const aiFailureSummary = overview?.aiFailures
+    .slice(0, 2)
+    .map(({ reason, count }) => {
+      const label = fallbackReasonLabels[reason as AIFallbackReason] || '其他错误';
+      return `${label} ${count}`;
+    })
+    .join(' · ');
 
   if (loading && !overview) return <div className="admin-loading">正在读取系统轨道…</div>;
   return (
@@ -3216,7 +3412,9 @@ function AdminPanel({
             <div className="admin-ai-metric">
               <span>AI 成功率</span>
               <strong>{aiRate}%</strong>
-              <small>{overview.activeEndpoint?.name || '尚无激活端点'}</small>
+              <small title={aiFailureSummary || undefined}>
+                {aiFailureSummary || overview.activeEndpoint?.name || '尚无激活端点'}
+              </small>
             </div>
           </section>
 

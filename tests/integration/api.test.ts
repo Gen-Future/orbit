@@ -327,12 +327,12 @@ test('真实 API / PostgreSQL 业务与隔离闭环', async (t) => {
       });
       assert.equal(result.status, 200);
       assert.equal(result.body.mode, 'rules');
+      assert.equal(result.body.fallbackReason, 'invalid_json');
       assert.equal(await db.item.count({ where: { workspaceId: widA } }), count);
       assert.ok(result.body.draft.dueAt);
-      assert.equal(
-        (await db.aIJob.findUniqueOrThrow({ where: { id: result.body.jobId } })).status,
-        'failed',
-      );
+      const job = await db.aIJob.findUniqueOrThrow({ where: { id: result.body.jobId } });
+      assert.equal(job.status, 'failed');
+      assert.match(job.error || '', /^invalid_json:/);
     } finally {
       model.closeAllConnections();
       await new Promise<void>((resolve) => model.close(() => resolve()));
@@ -352,6 +352,10 @@ test('真实 API / PostgreSQL 业务与隔离闭环', async (t) => {
                   title: 'AI valid proposal',
                   notes: 'grounded',
                   quadrant: 2,
+                  triageStatus: 'triaged',
+                  projectId: null,
+                  dueAt: null,
+                  reminderAt: null,
                   subtasks: ['First step'],
                 }),
               },
@@ -364,6 +368,7 @@ test('真实 API / PostgreSQL 业务与隔离闭环', async (t) => {
     try {
       const valid = await request(`workspaces/${widA}/ai`, 'POST', { text: '整理一个具体步骤' });
       assert.equal(valid.body.mode, 'ai');
+      assert.equal(valid.body.fallbackReason, null);
       assert.equal(valid.body.draft.title, 'AI valid proposal');
       slow = true;
       const start = Date.now();
@@ -371,6 +376,7 @@ test('真实 API / PostgreSQL 业务与隔离闭环', async (t) => {
         text: '一个需要超时回退的想法',
       });
       assert.equal(timeout.body.mode, 'rules');
+      assert.equal(timeout.body.fallbackReason, 'timeout');
       assert.ok(Date.now() - start >= 14000);
       assert.ok(Date.now() - start < 22000);
     } finally {
@@ -390,7 +396,10 @@ test('真实 API / PostgreSQL 业务与隔离闭环', async (t) => {
                   title: 'Proposal',
                   notes: '',
                   quadrant: 2,
+                  triageStatus: 'triaged',
                   projectId: projectB,
+                  dueAt: null,
+                  reminderAt: null,
                   subtasks: [],
                 }),
               },
@@ -419,6 +428,48 @@ test('真实 API / PostgreSQL 业务与隔离闭环', async (t) => {
     });
     assert.equal(value.status, 201, JSON.stringify(value.body));
     assert.equal(await db.item.count({ where: { parentId: value.body.id, workspaceId: widA } }), 2);
+    const firstPlan = await request(`workspaces/${widA}/items/${value.body.id}/plan`, 'POST', {
+      version: value.body.version,
+      title: value.body.title,
+      notes: value.body.notes,
+      quadrant: value.body.quadrant,
+      triageStatus: value.body.triageStatus,
+      projectId: null,
+      dueAt: null,
+      reminderAt: null,
+      subtasks: ['Repeated step'],
+    });
+    assert.equal(firstPlan.status, 200, JSON.stringify(firstPlan.body));
+    const secondPlan = await request(`workspaces/${widA}/items/${value.body.id}/plan`, 'POST', {
+      version: firstPlan.body.version,
+      title: value.body.title,
+      notes: value.body.notes,
+      quadrant: value.body.quadrant,
+      triageStatus: value.body.triageStatus,
+      projectId: null,
+      dueAt: null,
+      reminderAt: null,
+      subtasks: ['Repeated step'],
+    });
+    assert.equal(secondPlan.status, 200, JSON.stringify(secondPlan.body));
+    assert.equal(
+      await db.item.count({
+        where: { parentId: value.body.id, workspaceId: widA, title: 'Repeated step' },
+      }),
+      1,
+    );
+    const invalidTiming = await request(`workspaces/${widA}/capture`, 'POST', {
+      title: 'Invalid reminder',
+      notes: '',
+      quadrant: 2,
+      triageStatus: 'triaged',
+      projectId: null,
+      dueAt: new Date(Date.now() + 3600000).toISOString(),
+      reminderAt: new Date(Date.now() - 60000).toISOString(),
+      subtasks: [],
+      source: 'ai',
+    });
+    assert.equal(invalidTiming.status, 400);
   });
   await t.test('通知扫描重试去重，稍后提醒产生新日程', async () => {
     const { scanNotifications } = await import('../../src/lib/notifications');

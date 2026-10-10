@@ -111,6 +111,7 @@ export async function deliverNotifications(now = new Date()) {
       createdAt: { gte: new Date(now.getTime() - 2 * 864e5) },
     },
     include: { user: { include: { subscriptions: true } }, workspace: true },
+    orderBy: { createdAt: 'desc' },
     take: 100,
   });
   for (const notification of rows) {

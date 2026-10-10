@@ -8,6 +8,8 @@ import {
   itemInput,
   itemPatch,
   draftSchema,
+  aiDraftSchema,
+  captureTimingIssues,
   isPositionOnlyEvent,
   isSedimentItem,
   sedimentAfterMs,
@@ -65,6 +67,41 @@ test('输入拒绝无时区日期、未知字段和过多子事项', () => {
     draftSchema.safeParse({ title: 'a', subtasks: Array(13).fill('step') }).success,
     false,
   );
+});
+test('AI 输出必须完整，提醒时间满足业务顺序', () => {
+  assert.equal(aiDraftSchema.safeParse({ title: '只有标题' }).success, false);
+  const complete = {
+    title: '发布方案',
+    notes: '',
+    quadrant: 1,
+    triageStatus: 'triaged',
+    projectId: null,
+    dueAt: '2026-10-12T10:00:00.000Z',
+    reminderAt: '2026-10-12T09:00:00.000Z',
+    subtasks: ['确认清单'],
+  } as const;
+  assert.equal(aiDraftSchema.safeParse(complete).success, true);
+  assert.equal(
+    aiDraftSchema.safeParse({ ...complete, subtasks: ['确认清单', '确认清单'] }).success,
+    false,
+  );
+  assert.deepEqual(captureTimingIssues(complete, new Date('2026-10-12T08:00:00.000Z')), []);
+  assert.deepEqual(
+    captureTimingIssues(
+      { ...complete, reminderAt: '2026-10-12T11:00:00.000Z' },
+      new Date('2026-10-12T08:00:00.000Z'),
+    ),
+    ['提醒时间不能晚于截止时间'],
+  );
+});
+
+test('规则草稿清理自然语言指令前缀', () => {
+  const draft = simpleDraft(
+    '明天下午三点提醒我确认端到端验收',
+    'Asia/Shanghai',
+    new Date('2026-10-10T01:00:00.000Z'),
+  );
+  assert.equal(draft.title, '确认端到端验收');
 });
 test('密码采用盐值哈希，错误密码不通过', () => {
   const a = passwordHash('Strong-demo-password');

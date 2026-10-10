@@ -35,6 +35,7 @@ import {
   skills,
   scopes,
   roles,
+  captureTimingIssues,
   draftSchema,
   sedimentAfterMs,
 } from '../../../../../packages/core/src';
@@ -167,7 +168,7 @@ async function handler(req: Request, context: Context) {
           overdueItems,
           reports,
           aiSucceeded,
-          aiFailed,
+          failedAIJobs,
           activeSessions,
           recentUsers,
           activityItems,
@@ -187,7 +188,10 @@ async function handler(req: Request, context: Context) {
           }),
           db.report.count({ where: { createdAt: { gte: since } } }),
           db.aIJob.count({ where: { createdAt: { gte: since }, status: 'succeeded' } }),
-          db.aIJob.count({ where: { createdAt: { gte: since }, status: 'failed' } }),
+          db.aIJob.findMany({
+            where: { createdAt: { gte: since }, status: 'failed' },
+            select: { error: true },
+          }),
           db.session.findMany({
             where: { expiresAt: { gt: now } },
             distinct: ['userId'],
@@ -219,6 +223,11 @@ async function handler(req: Request, context: Context) {
             ).length,
           };
         });
+        const failureCounts = new Map<string, number>();
+        for (const job of failedAIJobs) {
+          const reason = job.error?.split(':', 1)[0] || 'unknown';
+          failureCounts.set(reason, (failureCounts.get(reason) || 0) + 1);
+        }
         return ok({
           totals: {
             users,
@@ -228,10 +237,13 @@ async function handler(req: Request, context: Context) {
             overdueItems,
             reports,
             aiSucceeded,
-            aiFailed,
+            aiFailed: failedAIJobs.length,
             activeUsers: activeSessions.length,
           },
           activity,
+          aiFailures: [...failureCounts]
+            .map(([reason, count]) => ({ reason, count }))
+            .sort((a, b) => b.count - a.count),
           recentUsers,
           activeEndpoint,
         });
@@ -556,11 +568,21 @@ async function handler(req: Request, context: Context) {
         );
       if (method === 'POST' && id && path[4] === 'plan') {
         const value = draftSchema.extend({ version: z.number().int().positive() }).parse(input);
+        const timingIssues = captureTimingIssues(value);
+        invariant(!timingIssues.length, 400, timingIssues.join('；'));
         return ok(
           await mutation(actor, key, { route: `plan:${id}`, value }, async (tx) => {
             const { subtasks, ...patch } = value;
             const item = await updateItem(tx, actor, id, patch);
-            for (const title of subtasks)
+            const existing = await tx.item.findMany({
+              where: { parentId: id, workspaceId: wid, deletedAt: null },
+              select: { title: true },
+            });
+            const known = new Set(existing.map(({ title }) => title.trim().toLocaleLowerCase()));
+            for (const title of subtasks) {
+              const normalized = title.trim().toLocaleLowerCase();
+              if (known.has(normalized)) continue;
+              known.add(normalized);
               await createItem(
                 tx,
                 actor,
@@ -573,6 +595,7 @@ async function handler(req: Request, context: Context) {
                 },
                 'ai',
               );
+            }
             return item;
           }),
         );
@@ -623,13 +646,19 @@ async function handler(req: Request, context: Context) {
       const input = draftSchema
         .extend({ source: z.enum(['ai', 'rules', 'manual']).default('manual') })
         .parse(raw);
+      const timingIssues = captureTimingIssues(input);
+      invariant(!timingIssues.length, 400, timingIssues.join('；'));
       if (raw && typeof raw === 'object' && !('triageStatus' in raw) && 'quadrant' in raw)
         input.triageStatus = 'triaged';
       return ok(
         await mutation(actor, key, { route: 'capture', input }, async (tx) => {
           const { subtasks, source, ...main } = input;
           const item = await createItem(tx, actor, main, source);
-          for (const title of subtasks)
+          const known = new Set<string>();
+          for (const title of subtasks) {
+            const normalized = title.trim().toLocaleLowerCase();
+            if (known.has(normalized)) continue;
+            known.add(normalized);
             await createItem(
               tx,
               actor,
@@ -642,6 +671,7 @@ async function handler(req: Request, context: Context) {
               },
               source,
             );
+          }
           return item;
         }),
         201,
@@ -861,7 +891,7 @@ async function handler(req: Request, context: Context) {
         });
       }
       invariant(input.text.trim() || input.itemId, 400, '请输入需要整理的内容');
-      return ok(await capture(actor, input.text, skillId, input.itemId));
+      return ok(await capture(actor, input.text, skillId, input.itemId, req.signal));
     }
     if (resource === 'skills' && method === 'GET') return ok(skills);
     if (resource === 'settings') {

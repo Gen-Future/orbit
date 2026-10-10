@@ -172,6 +172,7 @@ export function NebulaMatrix<T extends NebulaItem>({
   now,
   writable,
   busy,
+  captureBusy,
   zone,
   projects,
   immersive,
@@ -190,6 +191,7 @@ export function NebulaMatrix<T extends NebulaItem>({
   intent,
   onIntent,
   onCapture,
+  onCancelCapture,
   onSelect,
   onAdd,
   onInbox,
@@ -202,6 +204,7 @@ export function NebulaMatrix<T extends NebulaItem>({
   now: Date | null;
   writable: boolean;
   busy: boolean;
+  captureBusy: boolean;
   zone: string;
   projects: { id: string; name: string }[];
   immersive: boolean;
@@ -220,6 +223,7 @@ export function NebulaMatrix<T extends NebulaItem>({
   intent: string;
   onIntent: (value: string) => void;
   onCapture: () => Promise<void>;
+  onCancelCapture: () => void;
   onSelect: (item: T) => void;
   onAdd: (quadrant: number) => void;
   onInbox: () => void;
@@ -1034,7 +1038,8 @@ export function NebulaMatrix<T extends NebulaItem>({
           className="nebula-intent"
           onSubmit={(event) => {
             event.preventDefault();
-            if (!busy && intent.trim()) void onCapture();
+            if (captureBusy) onCancelCapture();
+            else if (!busy && intent.trim()) void onCapture();
           }}
         >
           <Sparkles size={18} aria-hidden="true" />
@@ -1046,8 +1051,12 @@ export function NebulaMatrix<T extends NebulaItem>({
             maxLength={12000}
             disabled={busy}
           />
-          <button type="submit" aria-label="解析并放入轨道" disabled={busy || !intent.trim()}>
-            <ArrowUp size={20} />
+          <button
+            type="submit"
+            aria-label={captureBusy ? '取消 AI 整理' : '解析并放入轨道'}
+            disabled={(busy && !captureBusy) || (!captureBusy && !intent.trim())}
+          >
+            {captureBusy ? <X size={20} /> : <ArrowUp size={20} />}
           </button>
         </form>
       )}

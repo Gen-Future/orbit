@@ -84,8 +84,10 @@ test('UI 完整事项闭环与持久化', async ({ browser }) => {
   await page.getByLabel('自然语言记录事项').fill('明天下午三点提醒我处理端到端验收事项');
   await page.getByRole('button', { name: '解析并放入轨道', exact: true }).click();
   const panel = page.getByRole('dialog');
+  await expect(panel.getByText('当前是规则草稿', { exact: true })).toBeVisible();
   await expect(panel.getByLabel('提醒时间')).not.toHaveValue('');
   await panel.getByLabel('事项名称').fill('端到端验收事项');
+  await panel.getByLabel('整理状态').selectOption('triaged');
   await panel.getByLabel('注意力坐标').selectOption('1');
   await panel.getByLabel('补充说明').fill('验证记录、完成、归档和周报来源');
   await panel.getByRole('button', { name: '确认记录' }).click();
@@ -100,7 +102,9 @@ test('UI 完整事项闭环与持久化', async ({ browser }) => {
   await page.getByRole('button', { name: '时光回放', exact: true }).click();
   await page.locator('.history-list .task-main').filter({ hasText: '端到端验收事项' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('dialog').getByText('更多操作', { exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: '归档保留' }).click();
+  await page.getByRole('dialog').getByText('更多操作', { exact: true }).click();
   await expect(page.getByRole('button', { name: '恢复事项' })).toBeVisible();
   await page.getByRole('button', { name: '关闭面板' }).click();
   await page.getByLabel('归档状态').selectOption('archived');
@@ -143,7 +147,7 @@ test('UI 完整事项闭环与持久化', async ({ browser }) => {
     expect(box!.x + box!.width).toBeLessThanOrEqual(mobilePanel!.x + mobilePanel!.width + 1);
   }
   await page.setViewportSize({ width: 1280, height: 900 });
-  await detail.getByRole('button', { name: '删除事项及子事项' }).click();
+  await detail.getByLabel('删除事项及子事项').click();
   await expect(detail.getByText('确认删除这颗星体？')).toBeVisible();
   await page.screenshot({
     path: '.impeccable/review/detail-status-and-delete.png',

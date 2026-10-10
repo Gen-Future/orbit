@@ -128,6 +128,39 @@ export type CaptureDraft = {
 export const draftSchema = itemInput
   .omit({ parentId: true, occurredAt: true })
   .extend({ subtasks: z.array(z.string().min(1).max(240)).max(12).default([]) });
+export const aiDraftSchema = z
+  .object({
+    title: z.string().trim().min(1).max(240),
+    notes: z.string().max(12000),
+    quadrant: z.number().int().min(1).max(4),
+    triageStatus: z.literal('triaged'),
+    projectId: z.string().nullable(),
+    dueAt: instant.nullable(),
+    reminderAt: instant.nullable(),
+    subtasks: z.array(z.string().trim().min(1).max(240)).max(12),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const unique = new Set(value.subtasks.map((title) => title.toLocaleLowerCase()));
+    if (unique.size !== value.subtasks.length)
+      context.addIssue({
+        code: 'custom',
+        path: ['subtasks'],
+        message: '子事项不能重复',
+      });
+  });
+
+export function captureTimingIssues(
+  value: Pick<CaptureDraft, 'dueAt' | 'reminderAt'>,
+  now = new Date(),
+) {
+  const issues: string[] = [];
+  const due = value.dueAt ? Date.parse(value.dueAt) : null;
+  const reminder = value.reminderAt ? Date.parse(value.reminderAt) : null;
+  if (reminder !== null && reminder <= now.getTime()) issues.push('提醒时间必须晚于当前时间');
+  if (reminder !== null && due !== null && reminder > due) issues.push('提醒时间不能晚于截止时间');
+  return issues;
+}
 export const skills = [
   {
     id: 'capture-item',
@@ -317,10 +350,23 @@ export function quickDeadline(kind: QuickDeadline, zone: string, now = new Date(
   return zonedInstant(day, `${String(targetHour).padStart(2, '0')}:00`, zone);
 }
 export function simpleDraft(text: string, zone: string, now = new Date()): CaptureDraft {
-  const title = text
+  const originalTitle = text
     .trim()
     .split(/[。\n]/)[0]
     .slice(0, 240);
+  const title =
+    originalTitle
+      .replace(
+        /^(?:请|麻烦)?\s*(?:帮我)?\s*(?:记下|记录(?:一下)?|添加(?:一个)?事项)\s*[，,:：]?\s*/u,
+        '',
+      )
+      .replace(
+        /^(?:今天|明天|后天|下周[一二三四五六日天]?|周[一二三四五六日天])(?:上午|中午|下午|晚上)?\s*(?:[一二三四五六七八九十两\d]{1,3}(?:点|[:：]\d{2}))?\s*(?:前|之前)?\s*[，,:：]?\s*/u,
+        '',
+      )
+      .replace(/^(?:请)?\s*提醒我\s*[，,:：]?\s*/u, '')
+      .trim()
+      .slice(0, 240) || originalTitle;
   const p = localParts(now, zone);
   let date = new Date(`${p.year}-${p.month}-${p.day}T00:00:00Z`);
   let hasDate = false;
@@ -371,7 +417,7 @@ export function simpleDraft(text: string, zone: string, now = new Date()): Captu
     urgent = !/不紧急/.test(text) && /紧急|马上|今天|立即/.test(text);
   return {
     title,
-    notes: text === title ? '' : text,
+    notes: text.trim() === title ? '' : text,
     quadrant: important
       ? urgent
         ? 1

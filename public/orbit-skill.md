@@ -24,7 +24,7 @@ The user's instruction to record or update an item authorizes that requested ope
 All item/project/report writes require a fresh `Idempotency-Key` (UUID). Reuse the SAME key and body when retrying an interrupted request. Never reuse a key for changed content. Retry a transient failure at most twice; report unresolved outcomes without creating another item.
 
 - `POST /items` body: `{title,notes?,quadrant?,triageStatus?,projectId?,parentId?,dueAt?,occurredAt?,reminderAt?}`. Omit both `quadrant` and `triageStatus` to capture into the inbox. Supplying a quadrant without `triageStatus` remains backward-compatible and creates a triaged item.
-- `POST /ai` body: `{text,skillId:"capture-item"}`. Returns `{draft,mode,message}`. `mode: rules` is a rule-based fallback, not AI output.
+- `POST /ai` body: `{text,skillId:"capture-item"}`. Returns `{draft,mode,fallbackReason,message}`. `mode: rules` is a rule-based fallback, not AI output; use `fallbackReason` to explain why.
 - `POST /capture` confirms a draft: `{title,notes,quadrant,triageStatus,projectId?,dueAt?,reminderAt?,subtasks:[],source:"ai"|"rules"|"manual"}`.
 - `PATCH /projects/:id` edits `{version,name?,description?,color?,archived?}`. `DELETE /projects/:id` soft-deletes an empty project and requires `{version}`.
 - `PATCH /items/:id` includes the latest `version` and only fields being changed. Complete with `{version,status:"done"}`. Archive with `{version,archived:true}`; history is preserved.
@@ -35,7 +35,7 @@ All item/project/report writes require a fresh `Idempotency-Key` (UUID). Reuse t
 - `POST /reports` body: `{startAt,endAt,sourceIds?}`. sourceIds is an explicit selection of at most 200 workspace items. Range is start-inclusive, end-exclusive, at most 93 days. Saves a draft; never sends it externally.
 - `POST /skills/:id/run` executes a manifest capability. Generated changes are previews unless the manifest says otherwise. Reports save drafts only.
 
-Quadrants: `0` inbox; `1` important + urgent; `2` important + not urgent; `3` not important + urgent; `4` neither. Status: `open`, `doing`, `blocked`, `done`. All date strings must be ISO 8601 with timezone offset. Convert the user's intended local time using their workspace timezone; clarify ambiguous dates when needed.
+Inbox is `triageStatus=pending`. Quadrants apply only after triage: `1` important + urgent; `2` important + not urgent; `3` not important + urgent; `4` neither. Status: `open`, `doing`, `blocked`, `done`. All date strings must be ISO 8601 with timezone offset. Convert the user's intended local time using their workspace timezone; clarify ambiguous dates when needed.
 
 A `409` version conflict requires reading the item again and comparing the intended changes; do not blindly overwrite another user's update. A `403` is a permission boundary, not a retryable error. Use only scopes required for the requested operation. Tokens do not grant membership, model configuration, or token-management access.
 

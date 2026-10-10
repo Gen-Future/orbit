@@ -1622,6 +1622,75 @@ nav {
   padding: 26px;
   gap: 23px;
 }
+.ai-draft-status {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  margin: 20px 26px 0;
+  padding: 14px 15px;
+  border: 1px solid #4d4561;
+  border-radius: 10px;
+  background: #201d29;
+  color: #eee8fb;
+}
+.ai-draft-status.is-rules {
+  border-color: #5b4c37;
+  background: #242019;
+  color: #f2e8d6;
+}
+.ai-draft-status-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #362e49;
+  color: #cbb9ef;
+}
+.ai-draft-status.is-rules .ai-draft-status-icon {
+  background: #3a3022;
+  color: #ffd392;
+}
+.ai-draft-status strong,
+.ai-draft-status p,
+.ai-draft-status small {
+  display: block;
+}
+.ai-draft-status strong {
+  font-size: 12px;
+}
+.ai-draft-status p {
+  margin-top: 3px;
+  color: #c8bfd8;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.ai-draft-status.is-rules p {
+  color: #cfc2ad;
+}
+.ai-draft-status small {
+  margin-top: 5px;
+  color: #a99bbd;
+  font-size: 9px;
+}
+.ai-draft-status .text-button {
+  min-height: 34px;
+}
+.ai-change-preview {
+  margin: 14px 26px 0;
+  padding: 11px 14px;
+  border-block: 1px solid #343d2d;
+}
+.ai-change-preview span {
+  color: var(--muted);
+  font-size: 9px;
+}
+.ai-change-preview p {
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 11px;
+}
 .detail-status-switcher {
   margin: 20px 26px 0;
   padding: 15px;
@@ -1803,6 +1872,15 @@ nav {
   font-size: 10px;
   color: var(--muted);
   margin-top: -10px;
+}
+.field-error {
+  display: block;
+  margin-top: -12px;
+  color: var(--coral);
+  font-size: 10px;
+}
+.panel-form label > .field-error {
+  margin-top: 7px;
 }
 .panel-actions {
   display: flex;
@@ -3556,6 +3634,17 @@ nav {
   .panel-form {
     padding: 22px;
     gap: 21px;
+  }
+  .ai-draft-status {
+    grid-template-columns: 34px minmax(0, 1fr);
+    margin: 18px 22px 0;
+  }
+  .ai-draft-status .text-button {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+  .ai-change-preview {
+    margin-inline: 22px;
   }
   .side-panel > header {
     padding: 22px;
