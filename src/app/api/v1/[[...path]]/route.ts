@@ -567,13 +567,23 @@ async function handler(req: Request, context: Context) {
           201,
         );
       if (method === 'POST' && id && path[4] === 'plan') {
-        const value = draftSchema.extend({ version: z.number().int().positive() }).parse(input);
+        const value = draftSchema
+          .extend({
+            version: z.number().int().positive(),
+            applyDetails: z.boolean().default(false),
+          })
+          .parse(input);
         const timingIssues = captureTimingIssues(value);
-        invariant(!timingIssues.length, 400, timingIssues.join('；'));
+        invariant(!value.applyDetails || !timingIssues.length, 400, timingIssues.join('；'));
         return ok(
           await mutation(actor, key, { route: `plan:${id}`, value }, async (tx) => {
-            const { subtasks, ...patch } = value;
-            const item = await updateItem(tx, actor, id, patch);
+            const { subtasks, applyDetails, ...patch } = value;
+            const item = await updateItem(
+              tx,
+              actor,
+              id,
+              applyDetails ? patch : { version: patch.version },
+            );
             const existing = await tx.item.findMany({
               where: { parentId: id, workspaceId: wid, deletedAt: null },
               select: { title: true },

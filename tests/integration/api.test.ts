@@ -430,8 +430,8 @@ test('真实 API / PostgreSQL 业务与隔离闭环', async (t) => {
     assert.equal(await db.item.count({ where: { parentId: value.body.id, workspaceId: widA } }), 2);
     const firstPlan = await request(`workspaces/${widA}/items/${value.body.id}/plan`, 'POST', {
       version: value.body.version,
-      title: value.body.title,
-      notes: value.body.notes,
+      title: 'Do not replace original title',
+      notes: 'Do not replace original notes',
       quadrant: value.body.quadrant,
       triageStatus: value.body.triageStatus,
       projectId: null,
@@ -440,6 +440,8 @@ test('真实 API / PostgreSQL 业务与隔离闭环', async (t) => {
       subtasks: ['Repeated step'],
     });
     assert.equal(firstPlan.status, 200, JSON.stringify(firstPlan.body));
+    assert.equal(firstPlan.body.title, value.body.title);
+    assert.equal(firstPlan.body.notes, value.body.notes);
     const secondPlan = await request(`workspaces/${widA}/items/${value.body.id}/plan`, 'POST', {
       version: firstPlan.body.version,
       title: value.body.title,

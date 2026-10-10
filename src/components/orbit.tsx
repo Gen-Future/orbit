@@ -59,6 +59,10 @@ import {
   type CaptureDraft,
   type QuickDeadline,
 } from '../../packages/core/src';
+import {
+  mergeDraftSuggestion,
+  readCaptureMemory,
+} from '../../packages/core/src/capture-experience';
 import { ReportFoundry } from './report-foundry';
 import { NebulaMatrix, type AISignal, type StellarOutcome } from './nebula-matrix';
 import type { SedimentPage, SedimentSummary } from './sediment-belt';
@@ -443,6 +447,9 @@ export default function Orbit() {
     [now, setNow] = useState<Date | null>(null),
     [reduced, setReduced] = useState(false),
     [dataLoading, setDataLoading] = useState(true);
+  const captureMemoryScope = user && wid ? `orbit.capture.${user.id}.${wid}` : '';
+  const restoredCaptureScope = useRef('');
+  const [captureMemoryReady, setCaptureMemoryReady] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const menuRef = useRef<HTMLButtonElement>(null);
@@ -792,6 +799,51 @@ export default function Orbit() {
       }
     }
   }
+  useEffect(() => {
+    if (!captureMemoryScope || restoredCaptureScope.current === captureMemoryScope) return;
+    restoredCaptureScope.current = captureMemoryScope;
+    setCaptureMemoryReady(captureMemoryScope);
+    try {
+      const memory = readCaptureMemory(localStorage.getItem(captureMemoryScope));
+      setIntent(memory?.input || '');
+      if (memory?.draft) {
+        setDraft(memory.draft);
+        setDraftFor(null);
+        setDraftMode(memory.mode);
+        setDraftNotice('已恢复上次未保存的内容。');
+      }
+    } catch {
+      /* Storage can be disabled by the browser. Recording still works. */
+    }
+  }, [captureMemoryScope]);
+  useEffect(() => {
+    if (!captureMemoryScope || captureMemoryReady !== captureMemoryScope) return;
+    try {
+      const memory = readCaptureMemory(localStorage.getItem(captureMemoryScope));
+      localStorage.setItem(
+        captureMemoryScope,
+        JSON.stringify({
+          input: intent,
+          draft: memory?.draft || null,
+          mode: memory?.mode || 'manual',
+          savedAt: Date.now(),
+        }),
+      );
+    } catch {
+      /* Optional recovery must not block capture. */
+    }
+  }, [intent, captureMemoryScope, captureMemoryReady]);
+  function rememberDraft(value: CaptureDraft) {
+    if (!captureMemoryScope || draftFor) return;
+    try {
+      localStorage.setItem(
+        captureMemoryScope,
+        JSON.stringify({ input: intent, draft: value, mode: draftMode, savedAt: Date.now() }),
+      );
+    } catch {
+      /* Best effort. */
+    }
+  }
   async function patch(item: Item, changes: Record<string, unknown>): Promise<boolean> {
     let saved = false;
     await run(`item:${item.id}`, async () => {
@@ -937,20 +989,32 @@ export default function Orbit() {
     setDraftNotice(result.message);
     setDraftFallbackReason(result.fallbackReason);
   }
-  async function saveDraft(value: CaptureDraft) {
+  async function saveDraft(value: CaptureDraft, applyDetails = false) {
     await run('save-draft', async () => {
       if (draftFor) {
         await api(`${prefix}/items/${draftFor.id}/plan`, 'POST', {
           ...value,
           version: draftFor.version,
+          applyDetails,
         });
       } else await api(`${prefix}/capture`, 'POST', { ...value, source: draftMode });
+      try {
+        localStorage.removeItem(captureMemoryScope);
+      } catch {
+        /* Best effort. */
+      }
       setDraft(null);
       setDraftFor(null);
       setDraftNotice('');
       setDraftFallbackReason(null);
       setIntent('');
-      notify('已进入轨道，随时可以继续推进。');
+      notify(
+        draftFor
+          ? '执行步骤已更新。'
+          : value.triageStatus === 'pending'
+            ? '已放进收件箱，稍后整理。'
+            : '事项已添加到星图。',
+      );
       await refresh();
     });
   }
@@ -1876,7 +1940,7 @@ export default function Orbit() {
       )}
       {draft && (
         <DraftPanel
-          key={draftFor?.id || 'new'}
+          key={`${wid}:${draftFor?.id || 'new'}`}
           initial={draft}
           mode={draftMode}
           notice={draftNotice}
@@ -1891,12 +1955,18 @@ export default function Orbit() {
             setDraftNotice('');
             setDraftFallbackReason(null);
           }}
-          onRetry={() => {
-            const item = draftFor;
-            setDraft(null);
-            if (item) void decomposeItem(item);
-            else void parseIntent();
+          onRetry={async () => {
+            const response = await requestAIDraft(
+              draftFor ? 'decompose' : 'capture',
+              draftFor ? { itemId: draftFor.id, skillId: 'break-down-task' } : { text: intent },
+            );
+            if (!response) return null;
+            setDraftMode(response.result.mode);
+            setDraftNotice(response.result.message);
+            setDraftFallbackReason(response.result.fallbackReason);
+            return response.result;
           }}
+          onChange={rememberDraft}
           onSave={saveDraft}
         />
       )}
@@ -2246,6 +2316,7 @@ function DraftPanel({
   busy,
   onClose,
   onRetry,
+  onChange,
   onSave,
 }: {
   initial: CaptureDraft;
@@ -2258,11 +2329,39 @@ function DraftPanel({
   zone: string;
   busy: boolean;
   onClose: () => void;
-  onRetry: () => void;
-  onSave: (draft: CaptureDraft) => void;
+  onRetry: () => Promise<AIDraftResult | null>;
+  onChange: (draft: CaptureDraft) => void;
+  onSave: (draft: CaptureDraft, applyDetails?: boolean) => void;
 }) {
   const [value, setValue] = useState(initial),
     [subtasks, setSubtasks] = useState(initial.subtasks.join('\n'));
+  const [suggestion, setSuggestion] = useState(initial);
+  const [applyDetails, setApplyDetails] = useState(false);
+  const [retryNote, setRetryNote] = useState('');
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  useEffect(() => {
+    onChangeRef.current({
+      ...value,
+      subtasks: subtasks
+        .split('\n')
+        .map((x) => x.trim())
+        .filter(Boolean),
+    });
+  }, [value, subtasks, mode]);
+  async function retry() {
+    const next = await onRetry();
+    if (!next) return;
+    const merged = mergeDraftSuggestion(
+      suggestion,
+      { ...value, subtasks: subtaskRows },
+      next.draft,
+    );
+    setValue(merged);
+    setSubtasks(merged.subtasks.join('\n'));
+    setSuggestion(next.draft);
+    setRetryNote('已更新建议，你修改过的内容已保留。');
+  }
   const subtaskRows = subtasks
     .split('\n')
     .map((title) => title.trim())
@@ -2286,12 +2385,12 @@ function DraftPanel({
     : [];
   return (
     <Panel
-      title={editing ? '把下一步，变清楚。' : '让想法，进入轨道。'}
+      title={editing ? '从下一步开始' : '确认这件事'}
       subtitle={
         mode === 'ai'
-          ? 'AI 已整理 · 由你做最后确认'
+          ? '已整理为建议，可直接修改后添加'
           : mode === 'rules'
-            ? '规则草稿 · 请核对日期与分类'
+            ? '智能整理暂不可用，内容已保留'
             : '手动记录 · 保留每一个重要细节'
       }
       onClose={onClose}
@@ -2302,18 +2401,34 @@ function DraftPanel({
             {mode === 'ai' ? <Sparkles size={17} /> : <RefreshCw size={17} />}
           </span>
           <div>
-            <strong>{mode === 'ai' ? 'AI 建议已通过完整性校验' : '当前是规则草稿'}</strong>
-            <p>{notice || '请核对内容后再保存。'}</p>
-            {fallbackReason && <small>降级原因：{fallbackReasonLabels[fallbackReason]}</small>}
+            <strong>{mode === 'ai' ? '请确认 AI 理解是否准确' : '可以先保存，稍后再整理'}</strong>
+            <p>
+              {retryNote ||
+                (mode === 'rules'
+                  ? '原文与修改都会保留。'
+                  : notice || '日期、项目和分类均可修改。')}
+            </p>
+            {fallbackReason && (
+              <details>
+                <summary>查看原因</summary>
+                <small>{fallbackReasonLabels[fallbackReason]}</small>
+              </details>
+            )}
           </div>
           {mode === 'rules' && (
-            <button type="button" className="text-button" disabled={busy} onClick={onRetry}>
+            <button
+              type="button"
+              className="text-button"
+              disabled={busy}
+              onClick={() => void retry()}
+            >
               重新尝试 AI
             </button>
           )}
         </div>
       )}
-      {changes.length > 0 && (
+      {editing && <p className="draft-scope-note">默认只添加步骤，原标题、项目与时间保持不变。</p>}
+      {applyDetails && changes.length > 0 && (
         <div className="ai-change-preview">
           <span>确认后将更新</span>
           <p>{changes.join(' · ')}</p>
@@ -2323,116 +2438,169 @@ function DraftPanel({
         className="panel-form"
         onSubmit={(e) => {
           e.preventDefault();
-          onSave({
-            ...value,
-            subtasks: subtaskRows,
-          });
+          onSave(
+            {
+              ...value,
+              subtasks: subtaskRows,
+            },
+            applyDetails,
+          );
         }}
       >
-        <label>
-          事项名称
-          <input
-            required
-            maxLength={240}
-            value={value.title}
-            onChange={(e) => setValue({ ...value, title: e.target.value })}
-            placeholder="此刻，你想推进什么？"
-          />
-        </label>
-        <label>
-          补充说明
-          <textarea
-            value={value.notes}
-            onChange={(e) => setValue({ ...value, notes: e.target.value })}
-            rows={3}
-            placeholder="背景、想法、链接…"
-          />
-        </label>
-        <div className="form-grid">
-          <label>
-            注意力坐标
-            <select
-              value={value.quadrant}
-              onChange={(e) => setValue({ ...value, quadrant: Number(e.target.value) })}
-              disabled={value.triageStatus === 'pending'}
-            >
-              {quadrantNames.slice(1).map((name, index) => (
-                <option key={name} value={index + 1}>
-                  Q{index + 1} · {name}
-                </option>
-              ))}
-            </select>
+        {!editing && (
+          <label className="draft-title-field">
+            事项名称
+            <input
+              required
+              maxLength={240}
+              value={value.title}
+              onChange={(e) => setValue({ ...value, title: e.target.value })}
+              placeholder="此刻，你想推进什么？"
+            />
           </label>
-          <label>
-            整理状态
-            <select
-              value={value.triageStatus}
-              onChange={(e) =>
-                setValue({
-                  ...value,
-                  triageStatus: e.target.value as CaptureDraft['triageStatus'],
-                })
-              }
-            >
-              <option value="pending">待整理 · 先放进收件箱</option>
-              <option value="triaged">已整理 · 进入星图</option>
-            </select>
-          </label>
-          <label>
-            所属项目
-            <select
-              value={value.projectId || ''}
-              onChange={(e) => setValue({ ...value, projectId: e.target.value || null })}
-            >
-              <option value="">独立事项</option>
-              {projects.map((p) => (
-                <option value={p.id} key={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <OrbitDateTimeField
-            label="截止时间"
-            value={inputDate(value.dueAt || null, zone)}
-            zone={zone}
-            quick
-            note="快捷时间默认设为 18:00"
-            onChange={(next) => setValue({ ...value, dueAt: fromInput(next, zone) })}
-          />
-          <OrbitDateTimeField
-            label="提醒时间"
-            value={inputDate(value.reminderAt || null, zone)}
-            zone={zone}
-            onChange={(next) => setValue({ ...value, reminderAt: fromInput(next, zone) })}
-          />
+        )}
+        <div className="draft-overview">
+          {editing && <strong>{original?.title}</strong>}
+          <span>
+            {value.triageStatus === 'pending' ? '收件箱 · 待整理' : quadrantNames[value.quadrant]}
+            {value.projectId
+              ? ` · ${projects.find((p) => p.id === value.projectId)?.name || '所属项目'}`
+              : ''}
+          </span>
+          {value.dueAt && <span>截止 {shortDate(value.dueAt, zone)}</span>}
+          {value.reminderAt && <span>提醒 {shortDate(value.reminderAt, zone)}</span>}
+          {!value.dueAt && !value.reminderAt && <span>未安排时间</span>}
         </div>
-        <p className="field-note">时间按工作空间时区 {zone} 保存。</p>
-        {timingProblem && <p className="field-error">{timingProblem}</p>}
-        <label>
-          拆成小步 <span className="muted">每行一个，最多 12 个</span>
-          <textarea
-            rows={4}
-            value={subtasks}
-            onChange={(e) => setSubtasks(e.target.value)}
-            placeholder="先明确目标\n准备所需材料\n完成第一版"
-          />
-          {subtaskRows.length > 12 && (
-            <span className="field-error">已输入 {subtaskRows.length} 个步骤，最多保留 12 个</span>
+        <details className="draft-details" open={mode === 'manual' ? true : undefined}>
+          <summary>{editing ? '查看其他建议' : '修改细节'}</summary>
+          {editing && (
+            <label className="draft-apply-details">
+              <input
+                type="checkbox"
+                checked={applyDetails}
+                onChange={(e) => setApplyDetails(e.target.checked)}
+              />
+              同时应用以下信息修改
+            </label>
           )}
-        </label>
+          {editing && (
+            <label>
+              事项名称
+              <input
+                required
+                value={value.title}
+                onChange={(e) => setValue({ ...value, title: e.target.value })}
+                maxLength={240}
+              />
+            </label>
+          )}
+          <label>
+            补充说明
+            <textarea
+              value={value.notes}
+              onChange={(e) => setValue({ ...value, notes: e.target.value })}
+              rows={3}
+              placeholder="背景、想法、链接…"
+            />
+          </label>
+          <div className="form-grid">
+            <label>
+              注意力坐标
+              <select
+                value={value.quadrant}
+                onChange={(e) => setValue({ ...value, quadrant: Number(e.target.value) })}
+                disabled={value.triageStatus === 'pending'}
+              >
+                {quadrantNames.slice(1).map((name, index) => (
+                  <option key={name} value={index + 1}>
+                    Q{index + 1} · {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              整理状态
+              <select
+                value={value.triageStatus}
+                onChange={(e) =>
+                  setValue({
+                    ...value,
+                    triageStatus: e.target.value as CaptureDraft['triageStatus'],
+                  })
+                }
+              >
+                <option value="pending">待整理 · 先放进收件箱</option>
+                <option value="triaged">已整理 · 进入星图</option>
+              </select>
+            </label>
+            <label>
+              所属项目
+              <select
+                value={value.projectId || ''}
+                onChange={(e) => setValue({ ...value, projectId: e.target.value || null })}
+              >
+                <option value="">独立事项</option>
+                {projects.map((p) => (
+                  <option value={p.id} key={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <OrbitDateTimeField
+              label="截止时间"
+              value={inputDate(value.dueAt || null, zone)}
+              zone={zone}
+              quick
+              note="快捷时间默认设为 18:00"
+              onChange={(next) => setValue({ ...value, dueAt: fromInput(next, zone) })}
+            />
+            <OrbitDateTimeField
+              label="提醒时间"
+              value={inputDate(value.reminderAt || null, zone)}
+              zone={zone}
+              onChange={(next) => setValue({ ...value, reminderAt: fromInput(next, zone) })}
+            />
+          </div>
+          <p className="field-note">时间按工作空间时区 {zone} 保存。</p>
+        </details>
+        {timingProblem && <p className="field-error">{timingProblem}</p>}
+        {(editing || subtaskRows.length > 0) && (
+          <label>
+            执行步骤 <span className="muted">每行一个，最多 12 个</span>
+            <textarea
+              rows={4}
+              value={subtasks}
+              onChange={(e) => setSubtasks(e.target.value)}
+              placeholder="先明确目标\n准备所需材料\n完成第一版"
+            />
+            {subtaskRows.length > 12 && (
+              <span className="field-error">
+                已输入 {subtaskRows.length} 个步骤，最多保留 12 个
+              </span>
+            )}
+          </label>
+        )}
         <div className="panel-actions">
           <button type="button" className="secondary-button" onClick={onClose}>
-            再想想
+            稍后继续
           </button>
           <button
             className="primary-button"
             disabled={
-              busy || !value.title.trim() || Boolean(timingProblem) || subtaskRows.length > 12
+              busy ||
+              !value.title.trim() ||
+              (Boolean(timingProblem) && (!editing || applyDetails)) ||
+              subtaskRows.length > 12 ||
+              (editing && !subtaskRows.length && !applyDetails)
             }
           >
-            {busy ? <LoaderCircle size={16} className="spin" /> : <ArrowUpRight size={17} />}确认
-            {editing ? '更新' : '记录'}
+            {busy ? <LoaderCircle size={16} className="spin" /> : <ArrowUpRight size={17} />}
+            {editing
+              ? `添加 ${subtaskRows.length} 个步骤`
+              : value.triageStatus === 'pending'
+                ? '保存到收件箱'
+                : '添加事项'}
           </button>
         </div>
       </form>

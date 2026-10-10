@@ -4057,3 +4057,72 @@ nav {
     margin-left: 0;
   }
 }
+
+/* Capture preview: the decision comes first; metadata is progressively disclosed. */
+.draft-title-field input {
+  font-size: 22px;
+  font-weight: 600;
+}
+.draft-overview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.draft-overview strong {
+  flex-basis: 100%;
+  color: var(--text);
+  font-size: 18px;
+}
+.draft-details {
+  border-block: 1px solid var(--line);
+  padding-block: 14px;
+}
+.draft-details > summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--text);
+}
+.draft-details[open] > summary {
+  margin-bottom: 12px;
+}
+.draft-details > label,
+.draft-details > .form-grid {
+  margin-bottom: 20px;
+}
+.draft-scope-note {
+  margin: 20px 26px 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.draft-apply-details {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+.draft-apply-details input {
+  width: 20px;
+  height: 20px;
+}
+.ai-draft-status details summary {
+  cursor: pointer;
+  margin-top: 8px;
+  font-size: 12px;
+  min-height: 24px;
+}
+@media (max-width: 700px) {
+  .draft-title-field input {
+    font-size: 20px;
+  }
+  .draft-scope-note {
+    margin-inline: 20px;
+  }
+  .ai-draft-status details summary {
+    min-height: 44px;
+  }
+}

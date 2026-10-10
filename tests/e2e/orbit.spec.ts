@@ -1,5 +1,67 @@
 import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
+test('AI 简洁确认、重试保留编辑与刷新恢复', async ({ browser }) => {
+  for (const width of [1440, 390]) {
+    const context = await browser.newContext({
+      viewport: { width, height: 900 },
+      serviceWorkers: 'block',
+      reducedMotion: 'reduce',
+    });
+    const page = await context.newPage();
+    await page.goto('http://localhost:3001');
+    await page.getByRole('button', { name: '还没有账号？创建一个' }).click();
+    await page.getByLabel('如何称呼你').fill('Capture Tester');
+    await page.getByLabel('邮箱', { exact: true }).fill(`capture-${randomUUID()}@orbit.test`);
+    await page.getByLabel('密码', { exact: true }).fill('UI-test-password');
+    await page.getByRole('button', { name: '创建账号', exact: true }).click();
+    let attempt = 0;
+    await page.route('**/api/v1/workspaces/*/ai', async (route) => {
+      attempt++;
+      await route.fulfill({
+        json: {
+          mode: attempt === 1 ? 'rules' : 'ai',
+          fallbackReason: attempt === 1 ? 'timeout' : null,
+          message: '已整理为建议。',
+          draft: {
+            title: `建议 ${attempt}`,
+            notes: '',
+            quadrant: 2,
+            triageStatus: 'triaged',
+            projectId: null,
+            dueAt: null,
+            reminderAt: null,
+            subtasks: [],
+          },
+        },
+      });
+    });
+    await page.getByLabel('自然语言记录事项').fill('整理产品材料');
+    await page.getByRole('button', { name: '解析并放入轨道', exact: true }).click();
+    let panel = page.getByRole('dialog');
+    await expect(panel.getByLabel('事项名称')).toHaveValue('建议 1');
+    await expect(panel.getByLabel('补充说明')).toBeHidden();
+    await panel.getByLabel('事项名称').fill('我编辑过的事项');
+    await panel.getByRole('button', { name: '重新尝试 AI' }).click();
+    await expect(panel.getByText('已更新建议，你修改过的内容已保留。')).toBeVisible();
+    await expect(panel.getByLabel('事项名称')).toHaveValue('我编辑过的事项');
+    await page.reload();
+    panel = page.getByRole('dialog');
+    await expect(panel.getByLabel('事项名称')).toHaveValue('我编辑过的事项');
+    await page.screenshot({
+      path: `.impeccable/review/capture-preview-${width}.png`,
+      animations: 'disabled',
+    });
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    ).toBeTruthy();
+    await panel.getByRole('button', { name: '添加事项', exact: true }).click();
+    await expect(panel).toBeHidden();
+    await expect(
+      page.locator('.nebula-matrix').getByText('我编辑过的事项', { exact: true }),
+    ).toBeVisible();
+    await context.close();
+  }
+});
 test('桌面和手机工作台布局', async ({ browser }) => {
   for (const [name, width, height] of [
     ['desktop', 1440, 1050],
@@ -84,13 +146,14 @@ test('UI 完整事项闭环与持久化', async ({ browser }) => {
   await page.getByLabel('自然语言记录事项').fill('明天下午三点提醒我处理端到端验收事项');
   await page.getByRole('button', { name: '解析并放入轨道', exact: true }).click();
   const panel = page.getByRole('dialog');
-  await expect(panel.getByText('当前是规则草稿', { exact: true })).toBeVisible();
+  await expect(panel.getByText('可以先保存，稍后再整理', { exact: true })).toBeVisible();
+  await panel.getByText('修改细节', { exact: true }).click();
   await expect(panel.getByLabel('提醒时间')).not.toHaveValue('');
   await panel.getByLabel('事项名称').fill('端到端验收事项');
   await panel.getByLabel('整理状态').selectOption('triaged');
   await panel.getByLabel('注意力坐标').selectOption('1');
   await panel.getByLabel('补充说明').fill('验证记录、完成、归档和周报来源');
-  await panel.getByRole('button', { name: '确认记录' }).click();
+  await panel.getByRole('button', { name: '添加事项' }).click();
   await expect(panel).not.toBeVisible();
   await expect(page.getByText('端到端验收事项', { exact: true })).toBeVisible();
   await page.reload();

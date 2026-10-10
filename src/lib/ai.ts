@@ -117,6 +117,32 @@ export async function probeModelEndpoint(endpoint: ModelEndpoint) {
   return { ok: true, latencyMs: Date.now() - startedAt, model: endpoint.model };
 }
 
+async function withinModelDeadline<T>(
+  work: (signal: AbortSignal) => Promise<T>,
+  signal?: AbortSignal,
+): Promise<T> {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout>;
+  let cancel: () => void = () => {};
+  const interrupted = new Promise<never>((_, reject) => {
+    cancel = () => {
+      controller.abort();
+      reject(new ModelCallError('cancelled', fallbackMessages.cancelled));
+    };
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new ModelCallError('timeout', fallbackMessages.timeout));
+    }, 15000);
+    if (signal?.aborted) cancel();
+    else signal?.addEventListener('abort', cancel, { once: true });
+  });
+  try {
+    return await Promise.race([work(controller.signal), interrupted]);
+  } finally {
+    clearTimeout(timer!);
+    signal?.removeEventListener('abort', cancel);
+  }
+}
 export async function callModel(
   actor: Actor,
   skillId: string,
@@ -144,56 +170,57 @@ export async function callModel(
       throw new ModelCallError('unconfigured', fallbackMessages.unconfigured);
     const key = endpoint.encryptedKey ? decrypt(endpoint.encryptedKey) : process.env.AI_API_KEY;
     const request = modelRequest(endpoint, system, input, true, maxTokens);
-    let response: Response | null = null;
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        response = await fetch(request.url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(key ? { Authorization: `Bearer ${key}` } : {}),
-          },
-          body: JSON.stringify(request.body),
-          signal: signal
-            ? AbortSignal.any([signal, AbortSignal.timeout(15000)])
-            : AbortSignal.timeout(15000),
-        });
-        break;
-      } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError')
-          throw new ModelCallError('cancelled', fallbackMessages.cancelled);
-        if (error instanceof Error && error.name === 'TimeoutError')
-          throw new ModelCallError('timeout', fallbackMessages.timeout);
-        if (attempt === 0 && error instanceof TypeError) continue;
-        throw new ModelCallError('network', fallbackMessages.network);
+    return await withinModelDeadline(async (deadlineSignal) => {
+      let response: Response | null = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          response = await fetch(request.url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(key ? { Authorization: `Bearer ${key}` } : {}),
+            },
+            body: JSON.stringify(request.body),
+            cache: 'no-store',
+            signal: deadlineSignal,
+          });
+          break;
+        } catch (error) {
+          if (error instanceof Error && error.name === 'AbortError')
+            throw new ModelCallError('cancelled', fallbackMessages.cancelled);
+          if (error instanceof Error && error.name === 'TimeoutError')
+            throw new ModelCallError('timeout', fallbackMessages.timeout);
+          if (attempt === 0 && error instanceof TypeError) continue;
+          throw new ModelCallError('network', fallbackMessages.network);
+        }
       }
-    }
-    if (!response) throw new ModelCallError('network', fallbackMessages.network);
-    if (!response.ok) {
-      const reason: AIFallbackReason =
-        response.status === 401 || response.status === 403
-          ? 'authentication'
-          : response.status === 429
-            ? 'rate_limited'
-            : 'provider_error';
-      throw new ModelCallError(reason, fallbackMessages[reason]);
-    }
-    let body: Record<string, any>;
-    try {
-      body = await response.json();
-    } catch {
-      throw new ModelCallError('invalid_response', fallbackMessages.invalid_response);
-    }
-    const content = request.native ? body.message?.content : body.choices?.[0]?.message?.content;
-    if (typeof content !== 'string' || content.length >= 50000)
-      throw new ModelCallError('invalid_response', fallbackMessages.invalid_response);
-    let result: unknown;
-    try {
-      result = JSON.parse(content.replace(/^```(?:json)?\s*|\s*```$/g, ''));
-    } catch {
-      throw new ModelCallError('invalid_json', fallbackMessages.invalid_json);
-    }
-    return { jobId: job.id, result, failureReason: null };
+      if (!response) throw new ModelCallError('network', fallbackMessages.network);
+      if (!response.ok) {
+        const reason: AIFallbackReason =
+          response.status === 401 || response.status === 403
+            ? 'authentication'
+            : response.status === 429
+              ? 'rate_limited'
+              : 'provider_error';
+        throw new ModelCallError(reason, fallbackMessages[reason]);
+      }
+      let body: Record<string, any>;
+      try {
+        body = await response.json();
+      } catch {
+        throw new ModelCallError('invalid_response', fallbackMessages.invalid_response);
+      }
+      const content = request.native ? body.message?.content : body.choices?.[0]?.message?.content;
+      if (typeof content !== 'string' || content.length >= 50000)
+        throw new ModelCallError('invalid_response', fallbackMessages.invalid_response);
+      let result: unknown;
+      try {
+        result = JSON.parse(content.replace(/^```(?:json)?\s*|\s*```$/g, ''));
+      } catch {
+        throw new ModelCallError('invalid_json', fallbackMessages.invalid_json);
+      }
+      return { jobId: job.id, result, failureReason: null };
+    }, signal);
   } catch (error) {
     const failure =
       error instanceof ModelCallError
