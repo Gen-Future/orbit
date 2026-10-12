@@ -64,6 +64,8 @@ import {
   mergeDraftSuggestion,
   readCaptureMemory,
   type CaptureInsight,
+  type CapturePreference,
+  defaultCapturePreference,
 } from '../../packages/core/src/capture-experience';
 import { ReportFoundry } from './report-foundry';
 import { NebulaMatrix, type AISignal, type StellarOutcome } from './nebula-matrix';
@@ -150,6 +152,7 @@ type Preferences = {
   pausedUntil?: string | null;
 };
 type Config = {
+  capturePreference: CapturePreference | null;
   ai: { provider: string; baseUrl: string; model: string; hasKey: boolean } | null;
   preferences: Preferences | null;
   vapidPublicKey: string | null;
@@ -437,6 +440,12 @@ export default function Orbit() {
     [toast, setToast] = useState(''),
     [error, setError] = useState(''),
     [celebration, setCelebration] = useState<string | null>(null);
+  const [arrivalIds, setArrivalIds] = useState<string[]>([]);
+  useEffect(() => {
+    if (!arrivalIds.length) return;
+    const timer = setTimeout(() => setArrivalIds([]), 6000);
+    return () => clearTimeout(timer);
+  }, [arrivalIds]);
   const [batchDrafts, setBatchDrafts] = useState<CaptureDraft[]>([]);
   const [batchSelection, setBatchSelection] = useState<boolean[]>([]);
   const [draftInsights, setDraftInsights] = useState<CaptureInsight[]>([]);
@@ -591,6 +600,7 @@ export default function Orbit() {
       setSelected(null);
       setUndoDeleted(null);
       setStellarOutcome(null);
+      setArrivalIds([]);
       setDraft(null);
       setDraftNotice('');
       setDraftFallbackReason(null);
@@ -1030,7 +1040,10 @@ export default function Orbit() {
         });
       } else {
         const payload = { ...value, source: draftMode };
-        await api(`${prefix}/capture`, 'POST', payload, { idempotencyKey: captureKey(payload) });
+        const saved = await api<Item>(`${prefix}/capture`, 'POST', payload, {
+          idempotencyKey: captureKey(payload),
+        });
+        setArrivalIds([saved.id]);
       }
       captureSaveRef.current = null;
       try {
@@ -1742,6 +1755,7 @@ export default function Orbit() {
                     onDelete={deleteItem}
                     outcome={stellarOutcome}
                     aiSignal={aiSignal}
+                    arrivalIds={arrivalIds}
                     reduced={reduced}
                     onManage={() => setMobileNav(true)}
                     menuRef={menuRef}
@@ -2019,6 +2033,12 @@ export default function Orbit() {
             return response.result;
           }}
           onChange={rememberDraft}
+          onBatchRetry={(values, insights) => {
+            setDraft(values[0]);
+            setBatchDrafts(values);
+            setBatchSelection(values.map(() => true));
+            setDraftInsights(insights || []);
+          }}
           onSave={saveDraft}
         />
       )}
@@ -2058,9 +2078,15 @@ export default function Orbit() {
           onSave={async (values) => {
             await run('save-batch', async () => {
               const payload = { drafts: values, source: draftMode };
-              await api(`${prefix}/capture-batch`, 'POST', payload, {
-                idempotencyKey: captureKey(payload),
-              });
+              const saved = await api<{ items: Item[] }>(
+                `${prefix}/capture-batch`,
+                'POST',
+                payload,
+                {
+                  idempotencyKey: captureKey(payload),
+                },
+              );
+              setArrivalIds(saved.items.map((item) => item.id));
               captureSaveRef.current = null;
               try {
                 localStorage.removeItem(captureMemoryScope);
@@ -2425,6 +2451,7 @@ function DraftPanel({
   onClose,
   onRetry,
   onChange,
+  onBatchRetry,
   onSave,
 }: {
   initial: CaptureDraft;
@@ -2441,6 +2468,7 @@ function DraftPanel({
   onClose: () => void;
   onRetry: () => Promise<AIDraftResult | null>;
   onChange: (draft: CaptureDraft) => void;
+  onBatchRetry: (drafts: CaptureDraft[], insights?: CaptureInsight[]) => void;
   onSave: (draft: CaptureDraft, applyDetails?: boolean) => void;
 }) {
   const [value, setValue] = useState(initial),
@@ -2467,6 +2495,10 @@ function DraftPanel({
       { ...value, subtasks: subtaskRows },
       next.draft,
     );
+    if (!editing && next.drafts && next.drafts.length > 1) {
+      onBatchRetry([merged, ...next.drafts.slice(1)], next.insights);
+      return;
+    }
     setValue(merged);
     setSubtasks(merged.subtasks.join('\n'));
     setSuggestion(next.draft);
@@ -2808,6 +2840,7 @@ function BatchDraftPanel({
               <div className="batch-draft-content">
                 <input
                   aria-label={`事项 ${index + 1} 名称`}
+                  maxLength={240}
                   value={row.title}
                   onChange={(event) =>
                     setRows((current) =>
@@ -4245,9 +4278,15 @@ function SettingsPanel({
   const [memberEmail, setMemberEmail] = useState(''),
     [memberPassword, setMemberPassword] = useState(''),
     [memberRole, setMemberRole] = useState('member');
+  const [capturePrefs, setCapturePrefs] = useState<CapturePreference>(
+    config?.capturePreference || defaultCapturePreference,
+  );
   const configVersion = JSON.stringify(config);
   useEffect(() => {
-    if (config) setPrefs(config.preferences || defaultPrefs);
+    if (config) {
+      setPrefs(config.preferences || defaultPrefs);
+      setCapturePrefs(config.capturePreference || defaultCapturePreference);
+    }
   }, [configVersion]);
   const load = useCallback(async () => {
     setMembers(await api(`${prefix}/members`));
@@ -4433,8 +4472,77 @@ function SettingsPanel({
             </small>
           </div>
         </div>
+        <details className="capture-preferences">
+          <summary>我的整理习惯</summary>
+          <p>仅用于当前账号与工作空间；明确输入优先，所有建议仍由你确认。</p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void run('capture-preferences', async () => {
+                await api(`${prefix}/settings/capture`, 'POST', capturePrefs);
+                await refresh();
+                notify('整理习惯已保存。');
+              });
+            }}
+          >
+            <label className="toggle-row">
+              <span>
+                使用个人整理偏好<small>关闭后忽略这些偏好，已保存内容仍保留</small>
+              </span>
+              <input
+                type="checkbox"
+                checked={capturePrefs.enabled}
+                onChange={(e) => setCapturePrefs({ ...capturePrefs, enabled: e.target.checked })}
+              />
+            </label>
+            <label>
+              整理偏好
+              <textarea
+                rows={3}
+                maxLength={2000}
+                disabled={!capturePrefs.enabled}
+                value={capturePrefs.instructions}
+                onChange={(e) => setCapturePrefs({ ...capturePrefs, instructions: e.target.value })}
+                placeholder="例如：客户交付优先；任务名称用简短的动词开头。"
+              />
+            </label>
+            <label>
+              默认截止前提醒
+              <select
+                disabled={!capturePrefs.enabled}
+                value={capturePrefs.reminderMinutes}
+                onChange={(e) =>
+                  setCapturePrefs({ ...capturePrefs, reminderMinutes: Number(e.target.value) })
+                }
+              >
+                <option value="0">不自动建议提醒</option>
+                <option value="15">提前 15 分钟</option>
+                <option value="30">提前 30 分钟</option>
+                <option value="60">提前 1 小时</option>
+                <option value="1440">提前 1 天</option>
+              </select>
+            </label>
+            <label className="toggle-row">
+              <span>
+                每天一条推进建议
+                <small>针对长期阻塞或沉积事项替代普通遗忘提示，不自动更改事项</small>
+              </span>
+              <input
+                type="checkbox"
+                checked={capturePrefs.proactiveEnabled}
+                onChange={(e) =>
+                  setCapturePrefs({ ...capturePrefs, proactiveEnabled: e.target.checked })
+                }
+              />
+            </label>
+            <button className="secondary-button" disabled={disabled}>
+              保存整理习惯
+            </button>
+          </form>
+        </details>
         <div className="setting-note">
-          Orbit 只发送当前操作所需的事项与项目名；AI 执行记录保留输入哈希、模型版本和结构化结果。
+          Orbit 仅发送当前操作所需的事项、项目目标与已启用的个人偏好；AI
+          执行记录保留输入哈希、模型版本和结构化结果。
         </div>
       </section>
       <section className="settings-section">

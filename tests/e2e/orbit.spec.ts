@@ -50,6 +50,59 @@ test('多事项可编辑、取消与刷新恢复，批量确认只保存选中�
     await expect(
       page.locator('.nebula-matrix').getByText('提交已校对报价', { exact: true }),
     ).toBeVisible();
+    await expect(page.locator('.nebula-item.is-new-arrival').first()).toBeVisible();
+    await page.screenshot({
+      path: `.impeccable/review/capture-arrival-${width}.png`,
+      animations: 'disabled',
+    });
+    await context.close();
+  }
+});
+test('个人整理习惯可关闭、保存与刷新恢复，桌面手机均可操作', async ({ browser }) => {
+  for (const width of [1440, 390]) {
+    const context = await browser.newContext({
+      viewport: { width, height: 900 },
+      reducedMotion: 'reduce',
+      serviceWorkers: 'block',
+    });
+    const page = await context.newPage();
+    await page.goto('http://localhost:3001');
+    await page.getByRole('button', { name: '还没有账号？创建一个' }).click();
+    await page.getByLabel('如何称呼你').fill('Preference Tester');
+    await page.getByLabel('邮箱', { exact: true }).fill(`pref-${randomUUID()}@orbit.test`);
+    await page.getByLabel('密码', { exact: true }).fill('UI-test-password');
+    await page.getByRole('button', { name: '创建账号', exact: true }).click();
+    const open = async () => {
+      await page.getByRole('button', { name: '打开工作舱' }).click();
+      await page.getByRole('button', { name: '空间设置', exact: true }).click();
+      await page.getByText('我的整理习惯', { exact: true }).click();
+    };
+    await open();
+    await expect(page.getByRole('textbox', { name: '整理偏好', exact: true })).toBeDisabled();
+    await page.getByLabel('使用个人整理偏好').check();
+    await page.getByRole('textbox', { name: '整理偏好', exact: true }).fill('客户交付优先');
+    await page.getByLabel('默认截止前提醒').selectOption('60');
+    await page.getByLabel('每天一条推进建议').check();
+    await page.getByRole('button', { name: '保存整理习惯' }).click();
+    await expect(page.getByText('整理习惯已保存。', { exact: true })).toBeVisible();
+    await page.reload();
+    await open();
+    await expect(page.getByRole('textbox', { name: '整理偏好', exact: true })).toHaveValue(
+      '客户交付优先',
+    );
+    await expect(page.getByLabel('默认截止前提醒')).toHaveValue('60');
+    await expect(page.getByLabel('每天一条推进建议')).toBeChecked();
+    await page.screenshot({
+      path: `.impeccable/review/capture-preferences-${width}.png`,
+      animations: 'disabled',
+    });
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    ).toBeTruthy();
+    await page.getByLabel('使用个人整理偏好').uncheck();
+    await page.getByRole('button', { name: '保存整理习惯' }).click();
+    await expect(page.getByText('整理习惯已保存。', { exact: true })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: '整理偏好', exact: true })).toBeDisabled();
     await context.close();
   }
 });
@@ -114,6 +167,50 @@ test('AI 简洁确认、重试保留编辑与刷新恢复', async ({ browser }) 
     ).toBeVisible();
     await context.close();
   }
+});
+test('重新解析发现多事项时保留编辑并展示全部建议', async ({ browser }) => {
+  const context = await browser.newContext({ serviceWorkers: 'block', reducedMotion: 'reduce' });
+  const page = await context.newPage();
+  await page.goto('http://localhost:3001');
+  await page.getByRole('button', { name: '还没有账号？创建一个' }).click();
+  await page.getByLabel('如何称呼你').fill('Retry Tester');
+  await page.getByLabel('邮箱', { exact: true }).fill(`retry-${randomUUID()}@orbit.test`);
+  await page.getByLabel('密码', { exact: true }).fill('UI-test-password');
+  await page.getByRole('button', { name: '创建账号', exact: true }).click();
+  const draft = {
+    title: '提交报价',
+    notes: '',
+    quadrant: 2,
+    triageStatus: 'triaged',
+    projectId: null,
+    dueAt: null,
+    plannedAt: null,
+    reminderAt: null,
+    subtasks: [],
+  };
+  let attempt = 0;
+  await page.route('**/api/v1/workspaces/*/ai', (route) => {
+    attempt++;
+    return route.fulfill({
+      json: {
+        draft,
+        drafts: attempt === 1 ? [draft] : [draft, { ...draft, title: '跟进客户' }],
+        mode: attempt === 1 ? 'rules' : 'ai',
+        fallbackReason: attempt === 1 ? 'timeout' : null,
+        message: '已整理',
+      },
+    });
+  });
+  await page.getByLabel('自然语言记录事项').fill('提交报价；跟进客户');
+  await page.getByRole('button', { name: '解析并放入轨道', exact: true }).click();
+  await page.getByLabel('事项名称').fill('我校对的报价');
+  await page.getByRole('button', { name: '重新尝试 AI' }).click();
+  await expect(page.getByLabel('事项 1 名称')).toHaveValue('我校对的报价');
+  await expect(page.getByLabel('事项 2 名称')).toHaveValue('跟进客户');
+  await page.reload();
+  await expect(page.getByLabel('事项 1 名称')).toHaveValue('我校对的报价');
+  await expect(page.getByLabel('事项 2 名称')).toHaveValue('跟进客户');
+  await context.close();
 });
 test('桌面和手机工作台布局', async ({ browser }) => {
   for (const [name, width, height] of [

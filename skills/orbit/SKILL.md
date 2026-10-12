@@ -11,6 +11,7 @@ Use the user's configured `ORBIT_URL`, `ORBIT_WORKSPACE_ID`, and `ORBIT_TOKEN`. 
 
 - `GET /skills` returns versioned manifests and required scopes.
 - `GET /projects` returns valid project IDs. Never guess cross-workspace IDs.
+- Product model: inbox means `triageStatus=pending`; quadrants 1–4 only express attention order; projects express goals; `status` expresses execution progress.
 - `GET /items?q=keyword&all=true&page=1&limit=100` queries items, including archived when `all=true`. Response: `{items,total,page,limit}`. Paginate until the requested range is covered.
 - `GET /items/:id` returns the latest version, children, pending reminders and events.
 - `GET /items/sediment?page=1&limit=50` returns unfinished Q1-Q4 items overdue by at least 168 hours plus global quadrant counts. Use `q` or `quadrant=1..4` to narrow the page.
@@ -22,9 +23,12 @@ The user's instruction to record or update an item authorizes that requested ope
 
 All item/project/report writes require a fresh `Idempotency-Key` (UUID). Reuse the SAME key and body when retrying an interrupted request. Never reuse a key for changed content. Retry a transient failure at most twice; report unresolved outcomes without creating another item.
 
-- `POST /items` body: `{title,notes?,quadrant?,projectId?,parentId?,dueAt?,occurredAt?,reminderAt?}`.
-- `POST /ai` body: `{text,skillId:"capture-item"}`. Returns `{draft,mode,message}`. `mode: rules` is a rule-based fallback, not AI output.
-- `POST /capture` confirms a draft: `{title,notes,quadrant,projectId?,dueAt?,reminderAt?,subtasks:[],source:"ai"|"rules"|"manual"}`.
+- `POST /items` body: `{title,notes?,quadrant?,triageStatus?,projectId?,parentId?,dueAt?,plannedAt?,occurredAt?,reminderAt?}`. Omit both `quadrant` and `triageStatus` to capture into the inbox. Supplying a quadrant without `triageStatus` remains backward-compatible and creates a triaged item.
+- `POST /ai` body: `{text,skillId:"capture-item"}`. Returns `{draft,drafts,insights,mode,fallbackReason,message}`. `draft` is the first proposal; review all `drafts` (at most 12). `insights` includes classification reasons, clarification and similar existing tasks. `mode: rules` is a rule-based fallback, not AI output; use `fallbackReason` to explain why.
+- `POST /capture` confirms a draft: `{title,notes,quadrant,triageStatus,projectId?,dueAt?,plannedAt?,reminderAt?,subtasks:[],source:"ai"|"rules"|"manual"}`.
+- `POST /capture-batch` confirms selected proposals atomically: `{drafts:[...],source:"ai"|"rules"|"manual"}` with 1–12 drafts. Returns `{items:[...]}`. Invalid projects or timing make the entire batch fail. Reuse the same idempotency key and body for retries.
+- `POST /items/:id/plan` adds previewed steps with `{...draft,version,applyDetails:false}`. Default behavior only adds steps; `applyDetails:true` also changes title, notes, quadrant, project and deadline and requires the user's explicit intent.
+- `PATCH /projects/:id` edits `{version,name?,description?,color?,archived?}`. `DELETE /projects/:id` soft-deletes an empty project and requires `{version}`.
 - `PATCH /items/:id` includes the latest `version` and only fields being changed. Complete with `{version,status:"done"}`. Archive with `{version,archived:true}`; history is preserved.
 - `POST /items/bulk-reschedule` atomically updates 1-100 sediment items: `{items:[{id,version}],dueAt}`. The new dueAt must be in the future; a stale item makes the whole request fail.
 - `POST /items/:id/snooze` body: `{minutes:60}`.
@@ -33,7 +37,9 @@ All item/project/report writes require a fresh `Idempotency-Key` (UUID). Reuse t
 - `POST /reports` body: `{startAt,endAt,sourceIds?}`. sourceIds is an explicit selection of at most 200 workspace items. Range is start-inclusive, end-exclusive, at most 93 days. Saves a draft; never sends it externally.
 - `POST /skills/:id/run` executes a manifest capability. Generated changes are previews unless the manifest says otherwise. Reports save drafts only.
 
-Quadrants: `0` inbox; `1` important + urgent; `2` important + not urgent; `3` not important + urgent; `4` neither. Status: `open`, `doing`, `blocked`, `done`. All date strings must be ISO 8601 with timezone offset. Convert the user's intended local time using their workspace timezone; clarify ambiguous dates when needed.
+Inbox is `triageStatus=pending`. Quadrants apply only after triage: `1` important + urgent; `2` important + not urgent; `3` not important + urgent; `4` neither. Status: `open`, `doing`, `blocked`, `done`. All date strings must be ISO 8601 with timezone offset. Convert the user's intended local time using their workspace timezone; clarify ambiguous dates when needed.
+
+`plannedAt` is the intended action time, `dueAt` is the deadline, and `reminderAt` is the notification time. A request to be reminded does not imply a deadline. Personal capture preferences are opt-in, scoped to a signed-in user and workspace, and never applied to bearer-token AI calls. `GET /settings` returns `capturePreference`; `POST /settings/capture` saves `{enabled,instructions,reminderMinutes,proactiveEnabled}` for a signed-in writer only. They produce editable suggestions, never automatic item writes.
 
 A `409` version conflict requires reading the item again and comparing the intended changes; do not blindly overwrite another user's update. A `403` is a permission boundary, not a retryable error. Use only scopes required for the requested operation. Tokens do not grant membership, model configuration, or token-management access.
 

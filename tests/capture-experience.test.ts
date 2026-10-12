@@ -6,7 +6,68 @@ import {
   captureBatchSchema,
   ruleCaptureBatch,
   similarTasks,
+  defaultCapturePreference,
+  capturePreferenceSchema,
+  withCapturePreference,
+  nextActionSuggestion,
 } from '../packages/core/src/capture-experience';
+
+test('个人提醒偏好只补充未来建议，不覆盖明确提醒或修改原草稿', () => {
+  const now = Date.parse('2026-10-12T00:00:00Z');
+  const draft = { ...simpleDraft('交付方案', 'Asia/Shanghai'), dueAt: '2026-10-12T02:00:00Z' };
+  const pref = { ...defaultCapturePreference, enabled: true, reminderMinutes: 60 };
+  assert.equal(withCapturePreference(draft, pref, now).reminderAt, '2026-10-12T01:00:00.000Z');
+  assert.equal(draft.reminderAt, null);
+  assert.equal(withCapturePreference(draft, { ...pref, enabled: false }, now), draft);
+  assert.equal(withCapturePreference(draft, null, now), draft);
+  assert.equal(withCapturePreference({ ...draft, dueAt: null }, pref, now).reminderAt, null);
+  assert.equal(withCapturePreference(draft, pref, now + 864e5).reminderAt, null);
+  const explicit = { ...draft, reminderAt: '2026-10-12T01:30:00Z' };
+  assert.equal(withCapturePreference(explicit, pref, now), explicit);
+  assert.equal(capturePreferenceSchema.safeParse({ ...pref, reminderMinutes: -1 }).success, false);
+  assert.equal(capturePreferenceSchema.safeParse({ ...pref, userId: 'another' }).success, false);
+});
+
+test('推进建议选择最久阻塞或沉积事项，边界准确且不改变事项', () => {
+  const now = new Date('2026-10-12T00:00:00Z');
+  const item = {
+    id: 'old',
+    title: '旧事项',
+    status: 'open',
+    updatedAt: now,
+    dueAt: new Date(now.getTime() - 7 * 864e5),
+  };
+  assert.equal(nextActionSuggestion([item], now)?.itemId, 'old');
+  assert.equal(
+    nextActionSuggestion([{ ...item, dueAt: new Date(item.dueAt.getTime() + 1000) }], now),
+    null,
+  );
+  assert.equal(nextActionSuggestion([{ ...item, status: 'done' }], now), null);
+  const blocked = {
+    ...item,
+    id: 'blocked',
+    status: 'blocked',
+    dueAt: null,
+    updatedAt: new Date(now.getTime() - 3 * 864e5),
+  };
+  assert.equal(nextActionSuggestion([item, blocked], now)?.itemId, 'blocked');
+  assert.equal(
+    nextActionSuggestion(
+      [{ ...blocked, updatedAt: new Date(now.getTime() - 3 * 864e5 + 1000) }],
+      now,
+    ),
+    null,
+  );
+  assert.equal(
+    nextActionSuggestion(
+      [blocked, { ...blocked, id: 'oldest', updatedAt: new Date(now.getTime() - 5 * 864e5) }],
+      now,
+    )?.itemId,
+    'oldest',
+  );
+  assert.equal(item.status, 'open');
+  assert.equal(blocked.status, 'blocked');
+});
 
 test('批量解析保留校验，规则只按明确分隔拆分，相似事项匹配', () => {
   const rows = ruleCaptureBatch('明天提交报价；周五跟进客户', 'Asia/Shanghai');

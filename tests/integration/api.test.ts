@@ -523,6 +523,98 @@ test('真实 API / PostgreSQL 业务与隔离闭环', async (t) => {
     );
     assert.equal(await db.item.count({ where: { workspaceId: widA } }), before + 2);
   });
+  await t.test('个人整理偏好隔离、严格校验、权限与幂等', async () => {
+    const pref = {
+      enabled: true,
+      instructions: '客户交付优先',
+      reminderMinutes: 60,
+      proactiveEnabled: true,
+    };
+    const route = `workspaces/${widA}/settings/capture`;
+    const key = randomUUID();
+    assert.equal((await request(route, 'POST', pref, { key })).status, 200);
+    assert.equal((await request(route, 'POST', pref, { key })).status, 200);
+    const settings = (await request(`workspaces/${widA}/settings`)).body;
+    assert.deepEqual(settings.capturePreference, pref);
+    const otherSpace = await request('workspaces', 'POST', { name: '个人偏好隔离空间' });
+    assert.equal(otherSpace.status, 201);
+    assert.equal(
+      (await request(`workspaces/${otherSpace.body.id}/settings`)).body.capturePreference,
+      null,
+    );
+    // Reading settings then saving unchanged must work, without database-only fields.
+    assert.equal((await request(route, 'POST', settings.capturePreference)).status, 200);
+    assert.equal((await request(route, 'POST', { ...pref, userId: 'other' })).status, 400);
+    assert.equal((await request(route, 'POST', pref, { cookie: viewerCookie })).status, 403);
+    assert.equal((await request(`workspaces/${widB}/settings/capture`, 'POST', pref)).status, 403);
+    assert.equal(
+      (await request(`workspaces/${widB}/settings`, 'GET', undefined, { cookie: cookieB })).body
+        .capturePreference,
+      null,
+    );
+    assert.equal(
+      (await request(`workspaces/${widA}/settings`, 'GET', undefined, { cookie: viewerCookie }))
+        .body.capturePreference,
+      null,
+    );
+    const issued = await request(`workspaces/${widA}/tokens`, 'POST', {
+      name: 'personal-boundary',
+      scopes: ['items.read', 'items.write'],
+    });
+    assert.equal((await request(route, 'POST', pref, { bearer: issued.body.token })).status, 403);
+    assert.equal(
+      (
+        await request(`workspaces/${widA}/settings`, 'GET', undefined, {
+          bearer: issued.body.token,
+        })
+      ).body.capturePreference,
+      null,
+    );
+    const count = await db.item.count({ where: { workspaceId: widA } });
+    const parsed = await request(`workspaces/${widA}/ai`, 'POST', {
+      text: '明天下午三点前提交合同',
+    });
+    assert.equal(parsed.status, 200);
+    assert.ok(parsed.body.draft.dueAt);
+    assert.match(parsed.body.insights[0].clarification, /个人偏好/);
+    assert.equal(
+      Date.parse(parsed.body.draft.dueAt) - Date.parse(parsed.body.draft.reminderAt),
+      3600000,
+    );
+    assert.equal(await db.item.count({ where: { workspaceId: widA } }), count);
+  });
+  await t.test('推进建议每天最多一条、重复扫描去重、关闭后停止新增', async () => {
+    const { scanNotifications } = await import('../../src/lib/notifications');
+    const userId = (await request('auth/me')).body.user.id;
+    const now = new Date();
+    const blocked = await db.item.create({
+      data: {
+        workspaceId: widA,
+        title: '等待依赖',
+        status: 'blocked',
+        updatedAt: new Date(now.getTime() - 5 * 864e5),
+      },
+    });
+    await scanNotifications(now);
+    await scanNotifications(now);
+    const where = { workspaceId: widA, userId, dedupeKey: { startsWith: `${widA}:advance:` } };
+    const notices = await db.notification.findMany({ where });
+    assert.equal(notices.length, 1);
+    assert.equal(notices[0].itemId, blocked.id);
+    assert.equal(await db.notification.count({ where: { ...where, userId: { not: userId } } }), 0);
+    assert.equal(
+      (await db.item.findUniqueOrThrow({ where: { id: blocked.id } })).status,
+      'blocked',
+    );
+    await request(`workspaces/${widA}/settings/capture`, 'POST', {
+      enabled: false,
+      instructions: '',
+      reminderMinutes: 0,
+      proactiveEnabled: false,
+    });
+    await scanNotifications(new Date(now.getTime() + 864e5));
+    assert.equal(await db.notification.count({ where }), 1);
+  });
   await t.test('通知扫描重试去重，稍后提醒产生新日程', async () => {
     const { scanNotifications } = await import('../../src/lib/notifications');
     await scanNotifications();

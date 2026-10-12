@@ -182,6 +182,7 @@ export function NebulaMatrix<T extends NebulaItem>({
   onDelete,
   outcome,
   aiSignal,
+  arrivalIds = [],
   reduced,
   onManage,
   menuRef,
@@ -214,6 +215,7 @@ export function NebulaMatrix<T extends NebulaItem>({
   onDelete: (item: T) => Promise<boolean>;
   outcome: StellarOutcome | null;
   aiSignal: AISignal | null;
+  arrivalIds?: string[];
   reduced: boolean;
   onManage: () => void;
   menuRef: RefObject<HTMLButtonElement | null>;
@@ -315,6 +317,11 @@ export function NebulaMatrix<T extends NebulaItem>({
     [candidates, time, frame, sediment.total],
   );
   const pageCount = pages.length;
+  useEffect(() => {
+    if (!arrivalIds.length) return;
+    const found = pages.findIndex((entries) => entries.some((entry) => entry.id === arrivalIds[0]));
+    if (found >= 0) setPage(found);
+  }, [arrivalIds, pages]);
   const currentPage = Math.min(page, pageCount - 1);
   const labels = pages[currentPage];
   const positions = new Map(labels.map((entry) => [entry.id, entry]));
@@ -867,7 +874,7 @@ export function NebulaMatrix<T extends NebulaItem>({
                   onSelect(item);
                 },
               };
-              const classes = `nebula-color-${q} is-status-${item.status} ${drag?.id === item.id && drag.moved ? 'is-dragging' : ''} ${pressure > 0.9 ? 'is-hot' : ''} ${item.status === 'done' ? 'is-done' : ''} ${landed === item.id ? 'just-landed' : ''}`;
+              const classes = `nebula-color-${q} is-status-${item.status} ${arrivalIds.includes(item.id) ? 'is-new-arrival' : ''} ${drag?.id === item.id && drag.moved ? 'is-dragging' : ''} ${pressure > 0.9 ? 'is-hot' : ''} ${item.status === 'done' ? 'is-done' : ''} ${landed === item.id ? 'just-landed' : ''}`;
               return (
                 <Fragment key={item.id}>
                   <button

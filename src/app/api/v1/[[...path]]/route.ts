@@ -31,6 +31,7 @@ import {
 import { reportApi } from '@/lib/report-api';
 import { reportDraft } from '@/lib/reports';
 import { activeModelEndpoint, capture, probeModelEndpoint } from '@/lib/ai';
+import { capturePreferenceSchema } from '../../../../../packages/core/src/capture-experience';
 import {
   skills,
   scopes,
@@ -947,11 +948,22 @@ async function handler(req: Request, context: Context) {
     if (resource === 'skills' && method === 'GET') return ok(skills);
     if (resource === 'settings') {
       if (method === 'GET') {
-        const [ai, pref] = await Promise.all([
+        const [ai, pref, capturePreference] = await Promise.all([
           activeModelEndpoint(),
           actor.userId
             ? db.notificationPreference.findUnique({
                 where: { workspaceId_userId: { workspaceId: wid, userId: actor.userId } },
+              })
+            : null,
+          actor.userId
+            ? db.capturePreference.findUnique({
+                where: { workspaceId_userId: { workspaceId: wid, userId: actor.userId } },
+                select: {
+                  enabled: true,
+                  instructions: true,
+                  reminderMinutes: true,
+                  proactiveEnabled: true,
+                },
               })
             : null,
         ]);
@@ -965,10 +977,24 @@ async function handler(req: Request, context: Context) {
               }
             : null,
           preferences: pref,
+          capturePreference,
           vapidPublicKey: process.env.VAPID_PUBLIC_KEY || null,
           smtpConfigured: Boolean(process.env.SMTP_HOST),
           aiConfigured: Boolean(ai),
         });
+      }
+      if (method === 'POST' && id === 'capture') {
+        invariant(actor.userId, 403, '个人偏好需要用户登录');
+        const value = capturePreferenceSchema.parse(await body(req));
+        return ok(
+          await mutation(actor, key, { route: 'capture-preference', value }, (tx) =>
+            tx.capturePreference.upsert({
+              where: { workspaceId_userId: { workspaceId: wid, userId: actor.userId! } },
+              create: { ...value, workspaceId: wid, userId: actor.userId! },
+              update: value,
+            }),
+          ),
+        );
       }
       if (method === 'POST' && id === 'ai') {
         throw new HttpError(403, 'AI 端点由系统管理员统一管理');

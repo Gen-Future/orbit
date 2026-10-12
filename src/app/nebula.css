@@ -2816,3 +2816,27 @@
   top: var(--signal-y);
   transform: translate(-50%, -50%) scale(0.7);
 }
+/* New arrivals are marked at their actual position; the clickable star stays still. */
+.nebula-item.is-new-arrival {
+  outline: 2px solid #d7ff4f;
+  outline-offset: 4px;
+}
+.nebula-anchor.is-new-arrival .nebula-star {
+  animation: arrival-pulse 1.2s ease-out 2;
+}
+@keyframes arrival-pulse {
+  from {
+    filter: brightness(1.8);
+  }
+  to {
+    filter: brightness(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nebula-anchor.is-new-arrival .nebula-star {
+    animation: none;
+  }
+}
+.reduced-motion .nebula-anchor.is-new-arrival .nebula-star {
+  animation: none;
+}

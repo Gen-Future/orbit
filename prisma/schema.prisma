@@ -21,6 +21,7 @@ model User {
   preferences     NotificationPreference[]
   subscriptions   PushSubscription[]
   notifications   Notification[]
+  capturePreferences CapturePreference[]
 }
 
 model AIEndpoint {
@@ -63,6 +64,21 @@ model Workspace {
   preferences     NotificationPreference[]
   notifications   Notification[]
   aiConfig        AIConfig?
+  capturePreferences CapturePreference[]
+}
+
+model CapturePreference {
+  workspaceId String
+  userId String
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enabled Boolean @default(false)
+  instructions String @default("")
+  reminderMinutes Int @default(0)
+  proactiveEnabled Boolean @default(false)
+  updatedAt DateTime @updatedAt
+
+  @@id([workspaceId, userId])
 }
 
 model Membership {

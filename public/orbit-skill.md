@@ -23,9 +23,11 @@ The user's instruction to record or update an item authorizes that requested ope
 
 All item/project/report writes require a fresh `Idempotency-Key` (UUID). Reuse the SAME key and body when retrying an interrupted request. Never reuse a key for changed content. Retry a transient failure at most twice; report unresolved outcomes without creating another item.
 
-- `POST /items` body: `{title,notes?,quadrant?,triageStatus?,projectId?,parentId?,dueAt?,occurredAt?,reminderAt?}`. Omit both `quadrant` and `triageStatus` to capture into the inbox. Supplying a quadrant without `triageStatus` remains backward-compatible and creates a triaged item.
-- `POST /ai` body: `{text,skillId:"capture-item"}`. Returns `{draft,mode,fallbackReason,message}`. `mode: rules` is a rule-based fallback, not AI output; use `fallbackReason` to explain why.
-- `POST /capture` confirms a draft: `{title,notes,quadrant,triageStatus,projectId?,dueAt?,reminderAt?,subtasks:[],source:"ai"|"rules"|"manual"}`.
+- `POST /items` body: `{title,notes?,quadrant?,triageStatus?,projectId?,parentId?,dueAt?,plannedAt?,occurredAt?,reminderAt?}`. Omit both `quadrant` and `triageStatus` to capture into the inbox. Supplying a quadrant without `triageStatus` remains backward-compatible and creates a triaged item.
+- `POST /ai` body: `{text,skillId:"capture-item"}`. Returns `{draft,drafts,insights,mode,fallbackReason,message}`. `draft` is the first proposal; review all `drafts` (at most 12). `insights` includes classification reasons, clarification and similar existing tasks. `mode: rules` is a rule-based fallback, not AI output; use `fallbackReason` to explain why.
+- `POST /capture` confirms a draft: `{title,notes,quadrant,triageStatus,projectId?,dueAt?,plannedAt?,reminderAt?,subtasks:[],source:"ai"|"rules"|"manual"}`.
+- `POST /capture-batch` confirms selected proposals atomically: `{drafts:[...],source:"ai"|"rules"|"manual"}` with 1–12 drafts. Returns `{items:[...]}`. Invalid projects or timing make the entire batch fail. Reuse the same idempotency key and body for retries.
+- `POST /items/:id/plan` adds previewed steps with `{...draft,version,applyDetails:false}`. Default behavior only adds steps; `applyDetails:true` also changes title, notes, quadrant, project and deadline and requires the user's explicit intent.
 - `PATCH /projects/:id` edits `{version,name?,description?,color?,archived?}`. `DELETE /projects/:id` soft-deletes an empty project and requires `{version}`.
 - `PATCH /items/:id` includes the latest `version` and only fields being changed. Complete with `{version,status:"done"}`. Archive with `{version,archived:true}`; history is preserved.
 - `POST /items/bulk-reschedule` atomically updates 1-100 sediment items: `{items:[{id,version}],dueAt}`. The new dueAt must be in the future; a stale item makes the whole request fail.
@@ -36,6 +38,8 @@ All item/project/report writes require a fresh `Idempotency-Key` (UUID). Reuse t
 - `POST /skills/:id/run` executes a manifest capability. Generated changes are previews unless the manifest says otherwise. Reports save drafts only.
 
 Inbox is `triageStatus=pending`. Quadrants apply only after triage: `1` important + urgent; `2` important + not urgent; `3` not important + urgent; `4` neither. Status: `open`, `doing`, `blocked`, `done`. All date strings must be ISO 8601 with timezone offset. Convert the user's intended local time using their workspace timezone; clarify ambiguous dates when needed.
+
+`plannedAt` is the intended action time, `dueAt` is the deadline, and `reminderAt` is the notification time. A request to be reminded does not imply a deadline. Personal capture preferences are opt-in, scoped to a signed-in user and workspace, and never applied to bearer-token AI calls. `GET /settings` returns `capturePreference`; `POST /settings/capture` saves `{enabled,instructions,reminderMinutes,proactiveEnabled}` for a signed-in writer only. They produce editable suggestions, never automatic item writes.
 
 A `409` version conflict requires reading the item again and comparing the intended changes; do not blindly overwrite another user's update. A `403` is a permission boundary, not a retryable error. Use only scopes required for the requested operation. Tokens do not grant membership, model configuration, or token-management access.
 

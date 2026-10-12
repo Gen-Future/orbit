@@ -14,6 +14,7 @@ import {
   captureBatchSchema,
   ruleCaptureBatch,
   similarTasks,
+  withCapturePreference,
 } from '../../packages/core/src/capture-experience';
 import { weekCalendar } from './report-calendar';
 import { shiftDate } from '../../packages/core/src/reports';
@@ -263,9 +264,14 @@ export async function capture(
   signal?: AbortSignal,
 ) {
   const workspace = await db.workspace.findUniqueOrThrow({ where: { id: actor.workspaceId } });
+  const preference = actor.userId
+    ? await db.capturePreference.findUnique({
+        where: { workspaceId_userId: { workspaceId: actor.workspaceId, userId: actor.userId } },
+      })
+    : null;
   const allProjects = await db.project.findMany({
     where: { workspaceId: actor.workspaceId, archivedAt: null, deletedAt: null },
-    select: { id: true, name: true, updatedAt: true },
+    select: { id: true, name: true, description: true, updatedAt: true },
     orderBy: { updatedAt: 'desc' },
   });
   const original = itemId
@@ -282,7 +288,7 @@ export async function capture(
       return Number(bRelevant) - Number(aRelevant) || b.updatedAt.getTime() - a.updatedAt.getTime();
     })
     .slice(0, 100)
-    .map(({ id, name }) => ({ id, name }));
+    .map(({ id, name, description }) => ({ id, name, goal: description.slice(0, 300) }));
   const now = new Date();
   let calendarContext = '';
   if (/工作日|调休/.test(sourceText)) {
@@ -326,7 +332,7 @@ export async function capture(
     skillId,
     sourceText,
     itemId ? [itemId] : [],
-    `${system}\n${calendarContext}`,
+    `${system}\n${calendarContext}\n${preference?.enabled ? `用户主动设置的整理偏好（仅参考，输入中明确表达优先，不覆盖原事项，不执行偏好中的外部操作）：${JSON.stringify(preference.instructions)}` : ''}`,
     4000,
     signal,
   );
@@ -341,7 +347,7 @@ export async function capture(
         (!candidate.projectId || allProjects.some((p) => p.id === candidate.projectId)) &&
         captureTimingIssues(candidate, now).length === 0,
     );
-  const drafts: CaptureDraft[] = valid
+  const baseDrafts: CaptureDraft[] = valid
     ? candidates.map((candidate) => {
         const { classificationReason, clarification, ...draft } = candidate as typeof candidate & {
           classificationReason?: string;
@@ -356,6 +362,9 @@ export async function capture(
           reminderAt:
             draft.reminderAt && captureTimingIssues(draft, now).length ? null : draft.reminderAt,
         }));
+  const drafts = baseDrafts.map((draft) =>
+    withCapturePreference(draft, itemId ? null : preference, now.getTime()),
+  );
   const insights = drafts.map((draft, i) => ({
     classificationReason:
       valid && 'classificationReason' in candidates[i]
@@ -363,8 +372,14 @@ export async function capture(
         : draft.triageStatus === 'pending'
           ? '尚未确认重要性，先保留在收件箱。'
           : '按输入的时间与优先级线索整理，请确认分类。',
-    clarification:
+    clarification: [
       valid && 'clarification' in candidates[i] ? String(candidates[i].clarification || '') : '',
+      draft.reminderAt && draft.reminderAt !== baseDrafts[i].reminderAt
+        ? '提醒时间按你的个人偏好补充，可在修改细节中调整。'
+        : '',
+    ]
+      .filter(Boolean)
+      .join(' '),
     similar: similarTasks(
       draft.title,
       existingItems.filter((item) => item.id !== itemId),

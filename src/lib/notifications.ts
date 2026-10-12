@@ -1,10 +1,15 @@
 import { db } from './db';
 import { inQuietHours, localParts } from '../../packages/core/src';
+import { nextActionSuggestion } from '../../packages/core/src/capture-experience';
 import nodemailer from 'nodemailer';
 import webpush from 'web-push';
 export async function scanNotifications(now = new Date()) {
   const workspaces = await db.workspace.findMany({
-    include: { memberships: { include: { user: true } }, preferences: true },
+    include: {
+      memberships: { include: { user: true } },
+      preferences: true,
+      capturePreferences: true,
+    },
   });
   for (const space of workspaces) {
     const due = await db.reminder.findMany({
@@ -33,6 +38,31 @@ export async function scanNotifications(now = new Date()) {
       },
       take: 10,
       orderBy: { dueAt: 'asc' },
+    });
+    const blocked = await db.item.findMany({
+      where: {
+        workspaceId: space.id,
+        status: 'blocked',
+        parentId: null,
+        archivedAt: null,
+        deletedAt: null,
+        updatedAt: { lte: new Date(now.getTime() - 3 * 864e5) },
+      },
+      orderBy: { updatedAt: 'asc' },
+      take: 1,
+    });
+    const sediment = await db.item.findMany({
+      where: {
+        workspaceId: space.id,
+        status: { not: 'done' },
+        triageStatus: 'triaged',
+        parentId: null,
+        archivedAt: null,
+        deletedAt: null,
+        dueAt: { lte: new Date(now.getTime() - 7 * 864e5) },
+      },
+      orderBy: { dueAt: 'asc' },
+      take: 1,
     });
     const p = localParts(now, space.timezone);
     const day = `${p.year}-${p.month}-${p.day}`;
@@ -84,15 +114,23 @@ export async function scanNotifications(now = new Date()) {
         if (next.length)
           await add(`morning:${day}`, '今天，从重要的事开始', next.map((x) => x.title).join(' · '));
       }
-      for (const item of [
-        ...new Map([...overdue, ...forgotten].map((x) => [x.id, x])).values(),
-      ].slice(0, 5))
-        await add(
-          `signal:${day}:${item.id}`,
-          item.dueAt && item.dueAt < now ? '一件事需要重新安排' : '它还在等你的下一步',
-          item.title,
-          item.id,
-        );
+      const personalCapture = space.capturePreferences.find(
+        (pref) => pref.userId === membership.userId,
+      );
+      if (personalCapture?.proactiveEnabled) {
+        const suggestion = nextActionSuggestion([...blocked, ...sediment], now);
+        if (suggestion)
+          await add(`advance:${day}`, suggestion.title, suggestion.body, suggestion.itemId);
+      } else
+        for (const item of [
+          ...new Map([...overdue, ...forgotten].map((x) => [x.id, x])).values(),
+        ].slice(0, 5))
+          await add(
+            `signal:${day}:${item.id}`,
+            item.dueAt && item.dueAt < now ? '一件事需要重新安排' : '它还在等你的下一步',
+            item.title,
+            item.id,
+          );
     }
     await db.reminder.updateMany({
       where: { id: { in: due.map((r) => r.id) } },
