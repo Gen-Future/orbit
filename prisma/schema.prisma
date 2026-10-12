@@ -116,6 +116,7 @@ model Item {
   updatedAt      DateTime    @updatedAt
   occurredAt     DateTime    @default(now())
   dueAt          DateTime?
+  plannedAt      DateTime?
   completedAt    DateTime?
   archivedAt     DateTime?
   deletedAt      DateTime?

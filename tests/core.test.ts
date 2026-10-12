@@ -51,8 +51,26 @@ test('规则捕捉不捏造日期，识别用户时区的明天下午', () => {
     'Asia/Shanghai',
     new Date('2026-09-29T20:00:00Z'),
   );
-  assert.equal(draft.dueAt, '2026-10-01T07:00:00.000Z');
-  assert.equal(draft.reminderAt, draft.dueAt);
+  assert.equal(draft.dueAt, null);
+  assert.equal(draft.reminderAt, '2026-10-01T07:00:00.000Z');
+});
+test('提醒、计划行动与截止时间保持不同语义', () => {
+  const reminder = simpleDraft(
+    '明天下午3点提醒我确认方案',
+    'Asia/Shanghai',
+    new Date('2026-09-29T20:00:00Z'),
+  );
+  assert.equal(reminder.dueAt, null);
+  assert.equal(reminder.plannedAt, null);
+  assert.equal(reminder.reminderAt, '2026-10-01T07:00:00.000Z');
+  const planned = simpleDraft(
+    '明天下午3点安排开始准备方案',
+    'Asia/Shanghai',
+    new Date('2026-09-29T20:00:00Z'),
+  );
+  assert.equal(planned.dueAt, null);
+  assert.equal(planned.plannedAt, '2026-10-01T07:00:00.000Z');
+  assert.equal(planned.reminderAt, null);
 });
 test('输入拒绝无时区日期、未知字段和过多子事项', () => {
   assert.equal(itemInput.safeParse({ title: 'a', dueAt: '2026-09-29T12:00:00' }).success, false);
@@ -184,7 +202,8 @@ test('中文时间与四象限否定含义', () => {
     'Asia/Shanghai',
     new Date('2026-09-29T01:00:00Z'),
   );
-  assert.equal(result.dueAt, '2026-09-30T07:00:00.000Z');
+  assert.equal(result.dueAt, null);
+  assert.equal(result.reminderAt, '2026-09-30T07:00:00.000Z');
   assert.equal(result.quadrant, 2);
   assert.equal(result.triageStatus, 'triaged');
   assert.equal(simpleDraft('紧急但不重要', 'Asia/Shanghai').quadrant, 3);

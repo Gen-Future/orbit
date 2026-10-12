@@ -4109,6 +4109,124 @@ nav {
   width: 20px;
   height: 20px;
 }
+.draft-insight {
+  margin: 16px 26px 0;
+  padding: 12px 14px;
+  border: 1px solid #39462d;
+  border-radius: 10px;
+  background: #151b12;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.draft-insight p + p {
+  margin-top: 6px;
+  color: var(--text);
+}
+.draft-insight .text-button {
+  margin-top: 8px;
+  display: block;
+  text-align: left;
+}
+.batch-draft-list {
+  padding: 20px 26px 4px;
+  display: grid;
+  gap: 10px;
+}
+.batch-draft-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #151b12;
+}
+.batch-draft-row.is-muted {
+  opacity: 0.48;
+}
+.batch-draft-check {
+  display: grid;
+  place-items: start center;
+  padding-top: 4px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.batch-draft-check input {
+  width: 19px;
+  height: 19px;
+  accent-color: var(--lime);
+}
+.batch-draft-content input {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--text);
+  font-weight: 600;
+}
+.batch-draft-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.batch-draft-content small {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.batch-similar {
+  margin-top: 6px;
+}
+.batch-original {
+  margin: 18px 26px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.batch-original summary,
+.batch-fields summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.batch-original p {
+  white-space: pre-wrap;
+  margin-top: 8px;
+}
+.batch-fields fieldset {
+  border: 0;
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+  padding: 0 0 12px;
+}
+.batch-fields label {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.batch-fields label input,
+.batch-fields label textarea,
+.batch-fields label select {
+  padding: 10px;
+  background: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  width: 100%;
+}
+.batch-errors {
+  margin-inline: 26px;
+}
+.side-panel > .panel-actions {
+  margin: 0 26px 26px;
+}
 .ai-draft-status details summary {
   cursor: pointer;
   margin-top: 8px;

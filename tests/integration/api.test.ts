@@ -329,7 +329,8 @@ test('真实 API / PostgreSQL 业务与隔离闭环', async (t) => {
       assert.equal(result.body.mode, 'rules');
       assert.equal(result.body.fallbackReason, 'invalid_json');
       assert.equal(await db.item.count({ where: { workspaceId: widA } }), count);
-      assert.ok(result.body.draft.dueAt);
+      assert.equal(result.body.draft.dueAt, null);
+      assert.ok(result.body.draft.reminderAt);
       const job = await db.aIJob.findUniqueOrThrow({ where: { id: result.body.jobId } });
       assert.equal(job.status, 'failed');
       assert.match(job.error || '', /^invalid_json:/);
@@ -472,6 +473,55 @@ test('真实 API / PostgreSQL 业务与隔离闭环', async (t) => {
       source: 'ai',
     });
     assert.equal(invalidTiming.status, 400);
+  });
+  await t.test('批量录入整体回滚、幂等、权限与独立时间字段', async () => {
+    const draft = {
+      title: `Batch ${unique}`,
+      notes: '',
+      quadrant: 2,
+      triageStatus: 'pending',
+      plannedAt: new Date(Date.now() + 864e5).toISOString(),
+      dueAt: null,
+      reminderAt: null,
+      subtasks: [],
+    };
+    const route = `workspaces/${widA}/capture-batch`;
+    const before = await db.item.count({ where: { workspaceId: widA } });
+    assert.equal(
+      (await request(route, 'POST', { drafts: [draft, { ...draft, projectId: projectB }] })).status,
+      404,
+    );
+    assert.equal(await db.item.count({ where: { workspaceId: widA } }), before);
+    assert.equal(
+      (await request(route, 'POST', { drafts: [draft] }, { cookie: viewerCookie })).status,
+      403,
+    );
+    assert.equal(
+      (await request(`workspaces/${widB}/capture-batch`, 'POST', { drafts: [draft] })).status,
+      403,
+    );
+    const key = randomUUID();
+    const payload = {
+      drafts: [
+        draft,
+        {
+          ...draft,
+          title: `Batch reminder ${unique}`,
+          plannedAt: null,
+          reminderAt: new Date(Date.now() + 3600000).toISOString(),
+        },
+      ],
+    };
+    const first = await request(route, 'POST', payload, { key });
+    assert.equal(first.status, 201, JSON.stringify(first.body));
+    assert.equal(first.body.items[0].plannedAt, draft.plannedAt);
+    assert.equal(first.body.items[1].dueAt, null);
+    const repeated = await request(route, 'POST', payload, { key });
+    assert.deepEqual(
+      repeated.body.items.map((item: { id: string }) => item.id),
+      first.body.items.map((item: { id: string }) => item.id),
+    );
+    assert.equal(await db.item.count({ where: { workspaceId: widA } }), before + 2);
   });
   await t.test('通知扫描重试去重，稍后提醒产生新日程', async () => {
     const { scanNotifications } = await import('../../src/lib/notifications');

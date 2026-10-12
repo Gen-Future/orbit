@@ -1,0 +1,1 @@
+ALTER TABLE "Item" ADD COLUMN "plannedAt" TIMESTAMP(3);

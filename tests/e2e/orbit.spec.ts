@@ -1,5 +1,58 @@
 import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
+test('多事项可编辑、取消与刷新恢复，批量确认只保存选中事项', async ({ browser }) => {
+  for (const width of [1440, 390]) {
+    const context = await browser.newContext({
+      viewport: { width, height: 900 },
+      serviceWorkers: 'block',
+      reducedMotion: 'reduce',
+    });
+    const page = await context.newPage();
+    await page.goto('http://localhost:3001');
+    await page.getByRole('button', { name: '还没有账号？创建一个' }).click();
+    await page.getByLabel('如何称呼你').fill('Batch Tester');
+    await page.getByLabel('邮箱', { exact: true }).fill(`batch-${randomUUID()}@orbit.test`);
+    await page.getByLabel('密码', { exact: true }).fill('UI-test-password');
+    await page.getByRole('button', { name: '创建账号', exact: true }).click();
+    const draft = {
+      title: '提交报价',
+      notes: '',
+      quadrant: 2,
+      triageStatus: 'triaged',
+      projectId: null,
+      dueAt: null,
+      plannedAt: null,
+      reminderAt: null,
+      subtasks: [],
+    };
+    const drafts = [draft, { ...draft, title: '跟进客户' }];
+    await page.route('**/api/v1/workspaces/*/ai', (route) =>
+      route.fulfill({
+        json: { draft, drafts, mode: 'ai', fallbackReason: null, message: '已整理', insights: [] },
+      }),
+    );
+    await page.getByLabel('自然语言记录事项').fill('提交报价；跟进客户');
+    await page.getByRole('button', { name: '解析并放入轨道', exact: true }).click();
+    await page.getByLabel('事项 1 名称').fill('提交已校对报价');
+    await page.getByLabel('选择事项 2').uncheck();
+    await page.reload();
+    await expect(page.getByLabel('事项 1 名称')).toHaveValue('提交已校对报价');
+    await expect(page.getByLabel('选择事项 2')).not.toBeChecked();
+    await page.screenshot({
+      path: `.impeccable/review/capture-batch-${width}.png`,
+      animations: 'disabled',
+    });
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    ).toBeTruthy();
+    await page.getByRole('button', { name: '添加 1 件', exact: true }).click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(
+      page.locator('.nebula-matrix').getByText('提交已校对报价', { exact: true }),
+    ).toBeVisible();
+    await context.close();
+  }
+});
 test('AI 简洁确认、重试保留编辑与刷新恢复', async ({ browser }) => {
   for (const width of [1440, 390]) {
     const context = await browser.newContext({

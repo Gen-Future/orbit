@@ -91,6 +91,7 @@ export const itemInput = z
     projectId: z.string().nullable().optional(),
     parentId: z.string().nullable().optional(),
     dueAt: instant.nullable().optional(),
+    plannedAt: instant.nullable().optional(),
     occurredAt: instant.optional(),
     reminderAt: instant.nullable().optional(),
   })
@@ -122,6 +123,7 @@ export type CaptureDraft = {
   triageStatus: (typeof triageStatuses)[number];
   projectId?: string | null;
   dueAt?: string | null;
+  plannedAt?: string | null;
   reminderAt?: string | null;
   subtasks: string[];
 };
@@ -133,9 +135,10 @@ export const aiDraftSchema = z
     title: z.string().trim().min(1).max(240),
     notes: z.string().max(12000),
     quadrant: z.number().int().min(1).max(4),
-    triageStatus: z.literal('triaged'),
+    triageStatus: z.enum(triageStatuses),
     projectId: z.string().nullable(),
     dueAt: instant.nullable(),
+    plannedAt: instant.nullable().optional(),
     reminderAt: instant.nullable(),
     subtasks: z.array(z.string().trim().min(1).max(240)).max(12),
   })
@@ -405,7 +408,7 @@ export function simpleDraft(text: string, zone: string, now = new Date()): Captu
   const time = normalized.match(/(上午|下午|晚上)?\s*(\d{1,2})(?:[:：](\d{2})|点)/);
   let hour = time ? Number(time[2]) : 18;
   if (time && /下午|晚上/.test(time[1] || '') && hour < 12) hour += 12;
-  const dueAt =
+  const interpretedAt =
     hasDate && hour < 24
       ? zonedInstant(
           date.toISOString().slice(0, 10),
@@ -429,8 +432,15 @@ export function simpleDraft(text: string, zone: string, now = new Date()): Captu
           : 2,
     triageStatus:
       important || urgent || (/不重要/.test(text) && /不紧急/.test(text)) ? 'triaged' : 'pending',
-    dueAt,
-    reminderAt: /提醒/.test(text) ? dueAt : null,
+    dueAt:
+      /提醒/.test(text) || (/计划|安排|开始/.test(text) && !/完成|提交|交付|截止|截至/.test(text))
+        ? null
+        : interpretedAt,
+    plannedAt:
+      /计划|安排|开始/.test(text) && !/提醒|完成|提交|交付|截止|截至/.test(text)
+        ? interpretedAt
+        : null,
+    reminderAt: /提醒/.test(text) ? interpretedAt : null,
     subtasks: [],
   };
 }

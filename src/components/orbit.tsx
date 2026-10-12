@@ -56,12 +56,14 @@ import {
   localParts,
   isInboxItem,
   quickDeadline,
+  captureTimingIssues,
   type CaptureDraft,
   type QuickDeadline,
 } from '../../packages/core/src';
 import {
   mergeDraftSuggestion,
   readCaptureMemory,
+  type CaptureInsight,
 } from '../../packages/core/src/capture-experience';
 import { ReportFoundry } from './report-foundry';
 import { NebulaMatrix, type AISignal, type StellarOutcome } from './nebula-matrix';
@@ -94,6 +96,7 @@ type Item = {
   occurredAt: string;
   updatedAt: string;
   dueAt: string | null;
+  plannedAt?: string | null;
   orbitX?: number | null;
   orbitY?: number | null;
   orbitPlacedAt?: string | null;
@@ -176,6 +179,8 @@ type AIFallbackReason =
   | 'invalid_output';
 type AIDraftResult = {
   draft: CaptureDraft;
+  drafts?: CaptureDraft[];
+  insights?: CaptureInsight[];
   mode: 'ai' | 'rules';
   fallbackReason: AIFallbackReason | null;
   message: string;
@@ -288,13 +293,15 @@ async function api<T = Record<string, unknown>>(
   path: string,
   method = 'GET',
   data?: unknown,
-  options?: { signal?: AbortSignal },
+  options?: { signal?: AbortSignal; idempotencyKey?: string },
 ): Promise<T> {
   const response = await fetch(`/api/v1/${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
-      ...(method !== 'GET' ? { 'Idempotency-Key': crypto.randomUUID() } : {}),
+      ...(method !== 'GET'
+        ? { 'Idempotency-Key': options?.idempotencyKey || crypto.randomUUID() }
+        : {}),
     },
     ...(data !== undefined ? { body: JSON.stringify(data) } : {}),
     signal: options?.signal,
@@ -430,6 +437,9 @@ export default function Orbit() {
     [toast, setToast] = useState(''),
     [error, setError] = useState(''),
     [celebration, setCelebration] = useState<string | null>(null);
+  const [batchDrafts, setBatchDrafts] = useState<CaptureDraft[]>([]);
+  const [batchSelection, setBatchSelection] = useState<boolean[]>([]);
+  const [draftInsights, setDraftInsights] = useState<CaptureInsight[]>([]);
   const [loadedWorkspace, setLoadedWorkspace] = useState('');
   const [stellarOutcome, setStellarOutcome] = useState<StellarOutcome | null>(null);
   const [aiSignal, setAiSignal] = useState<AISignal | null>(null);
@@ -451,6 +461,13 @@ export default function Orbit() {
   const restoredCaptureScope = useRef('');
   const [captureMemoryReady, setCaptureMemoryReady] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const captureSaveRef = useRef<{ fingerprint: string; key: string } | null>(null);
+  function captureKey(payload: unknown) {
+    const fingerprint = `${wid}:${JSON.stringify(payload)}`;
+    if (captureSaveRef.current?.fingerprint !== fingerprint)
+      captureSaveRef.current = { fingerprint, key: crypto.randomUUID() };
+    return captureSaveRef.current.key;
+  }
   const navRef = useRef<HTMLElement>(null);
   const menuRef = useRef<HTMLButtonElement>(null);
   const workspaceIdRef = useRef(wid);
@@ -577,6 +594,8 @@ export default function Orbit() {
       setDraft(null);
       setDraftNotice('');
       setDraftFallbackReason(null);
+      setBatchDrafts([]);
+      setDraftInsights([]);
       setProjectFilter('');
       setSelectedProjectId(null);
       setItems([]);
@@ -655,6 +674,8 @@ export default function Orbit() {
           });
           setDraftFor(null);
           setDraftMode('manual');
+          setBatchDrafts([]);
+          setDraftInsights([]);
           setDraftNotice('');
           setDraftFallbackReason(null);
         }
@@ -806,6 +827,8 @@ export default function Orbit() {
     try {
       const memory = readCaptureMemory(localStorage.getItem(captureMemoryScope));
       setIntent(memory?.input || '');
+      setBatchDrafts(memory?.drafts || []);
+      setBatchSelection(memory?.selected || []);
       if (memory?.draft) {
         setDraft(memory.draft);
         setDraftFor(null);
@@ -826,6 +849,8 @@ export default function Orbit() {
           input: intent,
           draft: memory?.draft || null,
           mode: memory?.mode || 'manual',
+          drafts: memory?.drafts || [],
+          selected: memory?.selected || [],
           savedAt: Date.now(),
         }),
       );
@@ -967,6 +992,9 @@ export default function Orbit() {
     });
     await new Promise((resolve) => window.setTimeout(resolve, reduced ? 120 : 640));
     if (workspaceIdRef.current !== requestWorkspace || aiFlowRef.current !== requestId) return;
+    setBatchDrafts(result.drafts || []);
+    setBatchSelection((result.drafts || []).map(() => true));
+    setDraftInsights(result.insights || []);
     setDraft(result.draft);
     setDraftMode(result.mode);
     setDraftNotice(result.message);
@@ -983,6 +1011,9 @@ export default function Orbit() {
     if (!response || workspaceIdRef.current !== requestWorkspace) return;
     const { result, requestId } = response;
     if (aiFlowRef.current !== requestId) return;
+    setBatchDrafts(result.drafts || []);
+    setBatchSelection((result.drafts || []).map(() => true));
+    setDraftInsights(result.insights || []);
     setDraft(result.draft);
     setDraftFor(item);
     setDraftMode(result.mode);
@@ -997,7 +1028,11 @@ export default function Orbit() {
           version: draftFor.version,
           applyDetails,
         });
-      } else await api(`${prefix}/capture`, 'POST', { ...value, source: draftMode });
+      } else {
+        const payload = { ...value, source: draftMode };
+        await api(`${prefix}/capture`, 'POST', payload, { idempotencyKey: captureKey(payload) });
+      }
+      captureSaveRef.current = null;
       try {
         localStorage.removeItem(captureMemoryScope);
       } catch {
@@ -1359,6 +1394,8 @@ export default function Orbit() {
                         });
                         setDraftFor(null);
                         setDraftMode('manual');
+                        setBatchDrafts([]);
+                        setDraftInsights([]);
                         setDraftNotice('');
                         setDraftFallbackReason(null);
                       }}
@@ -1464,6 +1501,8 @@ export default function Orbit() {
                         });
                         setDraftFor(null);
                         setDraftMode('manual');
+                        setBatchDrafts([]);
+                        setDraftInsights([]);
                         setDraftNotice('');
                         setDraftFallbackReason(null);
                       }}
@@ -1609,6 +1648,8 @@ export default function Orbit() {
                           });
                           setDraftFor(null);
                           setDraftMode('manual');
+                          setBatchDrafts([]);
+                          setDraftInsights([]);
                           setDraftNotice('');
                           setDraftFallbackReason(null);
                         }}
@@ -1722,6 +1763,8 @@ export default function Orbit() {
                       });
                       setDraftFor(null);
                       setDraftMode('manual');
+                      setBatchDrafts([]);
+                      setDraftInsights([]);
                       setDraftNotice('');
                       setDraftFallbackReason(null);
                     }}
@@ -1790,6 +1833,8 @@ export default function Orbit() {
                     });
                     setDraftFor(null);
                     setDraftMode('manual');
+                    setBatchDrafts([]);
+                    setDraftInsights([]);
                     setDraftNotice('');
                     setDraftFallbackReason(null);
                   }}
@@ -1929,6 +1974,8 @@ export default function Orbit() {
               });
               setDraftFor(null);
               setDraftMode('manual');
+              setBatchDrafts([]);
+              setDraftInsights([]);
               setDraftNotice('');
               setDraftFallbackReason(null);
             }}
@@ -1938,7 +1985,7 @@ export default function Orbit() {
           </button>
         </div>
       )}
-      {draft && (
+      {draft && batchDrafts.length <= 1 && (
         <DraftPanel
           key={`${wid}:${draftFor?.id || 'new'}`}
           initial={draft}
@@ -1947,6 +1994,11 @@ export default function Orbit() {
           fallbackReason={draftFallbackReason}
           editing={Boolean(draftFor)}
           original={draftFor}
+          insight={draftInsights[0]}
+          onOpenSimilar={async (id) => {
+            setDraft(null);
+            await openItem(id);
+          }}
           projects={activeProjects}
           zone={zone}
           busy={Boolean(busy)}
@@ -1968,6 +2020,60 @@ export default function Orbit() {
           }}
           onChange={rememberDraft}
           onSave={saveDraft}
+        />
+      )}
+      {draft && batchDrafts.length > 1 && (
+        <BatchDraftPanel
+          key={`${wid}:batch`}
+          initial={batchDrafts}
+          insights={draftInsights}
+          projects={activeProjects}
+          zone={zone}
+          busy={Boolean(busy)}
+          originalText={intent}
+          selection={batchSelection}
+          onChange={(values, selected) => {
+            if (!captureMemoryScope) return;
+            try {
+              localStorage.setItem(
+                captureMemoryScope,
+                JSON.stringify({
+                  input: intent,
+                  draft: values[0],
+                  drafts: values,
+                  selected,
+                  mode: draftMode,
+                  savedAt: Date.now(),
+                }),
+              );
+            } catch {
+              /* Best effort. */
+            }
+          }}
+          onClose={() => setDraft(null)}
+          onOpenSimilar={async (id) => {
+            setDraft(null);
+            await openItem(id);
+          }}
+          onSave={async (values) => {
+            await run('save-batch', async () => {
+              const payload = { drafts: values, source: draftMode };
+              await api(`${prefix}/capture-batch`, 'POST', payload, {
+                idempotencyKey: captureKey(payload),
+              });
+              captureSaveRef.current = null;
+              try {
+                localStorage.removeItem(captureMemoryScope);
+              } catch {
+                /* Best effort. */
+              }
+              setDraft(null);
+              setBatchDrafts([]);
+              setIntent('');
+              notify(`已添加 ${values.length} 件事项。`);
+              await refresh();
+            });
+          }}
         />
       )}
       {selected && !draft && (
@@ -2311,6 +2417,8 @@ function DraftPanel({
   fallbackReason,
   editing,
   original,
+  insight,
+  onOpenSimilar,
   projects,
   zone,
   busy,
@@ -2325,6 +2433,8 @@ function DraftPanel({
   fallbackReason: AIFallbackReason | null;
   editing: boolean;
   original: Item | null;
+  insight?: CaptureInsight;
+  onOpenSimilar: (id: string) => void;
   projects: Project[];
   zone: string;
   busy: boolean;
@@ -2459,6 +2569,22 @@ function DraftPanel({
             />
           </label>
         )}
+        {insight && (
+          <div className="draft-insight">
+            <p>{insight.classificationReason}</p>
+            {insight.clarification && <p>{insight.clarification}</p>}
+            {insight.similar.map((item) => (
+              <button
+                type="button"
+                className="text-button"
+                key={item.id}
+                onClick={() => onOpenSimilar(item.id)}
+              >
+                已有相似事项：{item.title} · 查看
+              </button>
+            ))}
+          </div>
+        )}
         <div className="draft-overview">
           {editing && <strong>{original?.title}</strong>}
           <span>
@@ -2467,9 +2593,10 @@ function DraftPanel({
               ? ` · ${projects.find((p) => p.id === value.projectId)?.name || '所属项目'}`
               : ''}
           </span>
+          {value.plannedAt && <span>计划 {shortDate(value.plannedAt, zone)}</span>}
           {value.dueAt && <span>截止 {shortDate(value.dueAt, zone)}</span>}
           {value.reminderAt && <span>提醒 {shortDate(value.reminderAt, zone)}</span>}
-          {!value.dueAt && !value.reminderAt && <span>未安排时间</span>}
+          {!value.dueAt && !value.reminderAt && !value.plannedAt && <span>未安排时间</span>}
         </div>
         <details className="draft-details" open={mode === 'manual' ? true : undefined}>
           <summary>{editing ? '查看其他建议' : '修改细节'}</summary>
@@ -2548,6 +2675,13 @@ function DraftPanel({
               </select>
             </label>
             <OrbitDateTimeField
+              label="计划行动时间"
+              value={inputDate(value.plannedAt || null, zone)}
+              zone={zone}
+              quick
+              onChange={(next) => setValue({ ...value, plannedAt: fromInput(next, zone) })}
+            />
+            <OrbitDateTimeField
               label="截止时间"
               value={inputDate(value.dueAt || null, zone)}
               zone={zone}
@@ -2607,6 +2741,221 @@ function DraftPanel({
     </Panel>
   );
 }
+function BatchDraftPanel({
+  initial,
+  insights,
+  projects,
+  zone,
+  busy,
+  originalText,
+  selection,
+  onChange,
+  onClose,
+  onOpenSimilar,
+  onSave,
+}: {
+  initial: CaptureDraft[];
+  insights: CaptureInsight[];
+  projects: Project[];
+  zone: string;
+  busy: boolean;
+  originalText: string;
+  selection: boolean[];
+  onChange: (drafts: CaptureDraft[], selection: boolean[]) => void;
+  onClose: () => void;
+  onOpenSimilar: (id: string) => void;
+  onSave: (drafts: CaptureDraft[]) => Promise<void>;
+}) {
+  const [rows, setRows] = useState(initial.map((draft) => ({ ...draft })));
+  const [selected, setSelected] = useState(() => initial.map((_, i) => selection[i] ?? true));
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  useEffect(() => {
+    onChangeRef.current(rows, selected);
+  }, [rows, selected]);
+  function edit(index: number, patch: Partial<CaptureDraft>) {
+    setRows((current) => current.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  }
+  const problems = rows.flatMap((row, i) => (selected[i] ? captureTimingIssues(row) : []));
+  return (
+    <Panel
+      title={`发现 ${rows.length} 件事项`}
+      subtitle="确认要添加的内容，稍后仍可在星图中调整。"
+      onClose={onClose}
+    >
+      <details className="batch-original">
+        <summary>查看原始输入</summary>
+        <p>{originalText}</p>
+      </details>
+      <div className="batch-draft-list">
+        {rows.map((row, index) => {
+          const insight = insights[index];
+          return (
+            <article className={`batch-draft-row ${selected[index] ? '' : 'is-muted'}`} key={index}>
+              <label className="batch-draft-check">
+                <input
+                  aria-label={`选择事项 ${index + 1}`}
+                  type="checkbox"
+                  checked={selected[index]}
+                  onChange={(event) =>
+                    setSelected((current) =>
+                      current.map((value, i) => (i === index ? event.target.checked : value)),
+                    )
+                  }
+                />
+                <span aria-hidden="true" />
+              </label>
+              <div className="batch-draft-content">
+                <input
+                  aria-label={`事项 ${index + 1} 名称`}
+                  value={row.title}
+                  onChange={(event) =>
+                    setRows((current) =>
+                      current.map((value, i) =>
+                        i === index ? { ...value, title: event.target.value } : value,
+                      ),
+                    )
+                  }
+                  disabled={!selected[index]}
+                />
+                <div className="batch-draft-meta">
+                  <span>
+                    {row.triageStatus === 'pending' ? '待整理' : quadrantNames[row.quadrant]}
+                  </span>
+                  {row.plannedAt && <span>计划 {shortDate(row.plannedAt, zone)}</span>}
+                  {row.dueAt && <span>截止 {shortDate(row.dueAt, zone)}</span>}
+                  {row.reminderAt && <span>提醒 {shortDate(row.reminderAt, zone)}</span>}
+                </div>
+                {insight?.clarification && <p className="field-note">{insight.clarification}</p>}
+                {insight?.classificationReason && <small>{insight.classificationReason}</small>}
+                <details className="batch-fields">
+                  <summary>修改细节</summary>
+                  <fieldset disabled={!selected[index] || busy}>
+                    <label>
+                      补充说明
+                      <textarea
+                        value={row.notes}
+                        onChange={(e) => edit(index, { notes: e.target.value })}
+                        rows={2}
+                        maxLength={12000}
+                      />
+                    </label>
+                    <label>
+                      注意力顺序
+                      <select
+                        value={row.triageStatus === 'pending' ? 'pending' : String(row.quadrant)}
+                        onChange={(e) =>
+                          edit(
+                            index,
+                            e.target.value === 'pending'
+                              ? { triageStatus: 'pending' }
+                              : { triageStatus: 'triaged', quadrant: Number(e.target.value) },
+                          )
+                        }
+                      >
+                        <option value="pending">待整理 · 收件箱</option>
+                        {quadrantNames.slice(1).map((name, i) => (
+                          <option key={i} value={i + 1}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      所属项目
+                      <select
+                        value={row.projectId || ''}
+                        onChange={(e) => edit(index, { projectId: e.target.value || null })}
+                      >
+                        <option value="">独立事项</option>
+                        {projects.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <OrbitDateTimeField
+                      label="计划行动时间"
+                      value={inputDate(row.plannedAt || null, zone)}
+                      zone={zone}
+                      onChange={(value) => edit(index, { plannedAt: fromInput(value, zone) })}
+                    />
+                    <OrbitDateTimeField
+                      label="截止时间"
+                      value={inputDate(row.dueAt || null, zone)}
+                      zone={zone}
+                      quick
+                      onChange={(value) => edit(index, { dueAt: fromInput(value, zone) })}
+                    />
+                    <OrbitDateTimeField
+                      label="提醒时间"
+                      value={inputDate(row.reminderAt || null, zone)}
+                      zone={zone}
+                      onChange={(value) => edit(index, { reminderAt: fromInput(value, zone) })}
+                    />
+                    {row.subtasks.length > 0 && (
+                      <label>
+                        执行步骤
+                        <textarea
+                          rows={3}
+                          value={row.subtasks.join('\n')}
+                          onChange={(e) =>
+                            edit(index, {
+                              subtasks: e.target.value
+                                .split('\n')
+                                .map((v) => v.trim())
+                                .filter(Boolean),
+                            })
+                          }
+                        />
+                      </label>
+                    )}
+                  </fieldset>
+                </details>
+                {insight?.similar.map((item) => (
+                  <button
+                    type="button"
+                    className="text-button batch-similar"
+                    key={item.id}
+                    onClick={() => onOpenSimilar(item.id)}
+                  >
+                    已有相似事项：{item.title} · 查看
+                  </button>
+                ))}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+      {problems.length > 0 && (
+        <p className="field-error batch-errors">{[...new Set(problems)].join('；')}</p>
+      )}
+      <div className="panel-actions">
+        <button type="button" className="secondary-button" onClick={onClose}>
+          稍后继续
+        </button>
+        <button
+          type="button"
+          className="primary-button"
+          disabled={
+            busy ||
+            !selected.some(Boolean) ||
+            problems.length > 0 ||
+            rows.some(
+              (row, index) => selected[index] && (!row.title.trim() || row.subtasks.length > 12),
+            )
+          }
+          onClick={() => void onSave(rows.filter((_, index) => selected[index]))}
+        >
+          {busy ? <LoaderCircle size={16} className="spin" /> : <ArrowUpRight size={17} />}
+          添加 {selected.filter(Boolean).length} 件
+        </button>
+      </div>
+    </Panel>
+  );
+}
+
 function DetailPanel({
   item,
   projects,
@@ -2651,6 +3000,7 @@ function DetailPanel({
     [projectId, setProjectId] = useState(item.projectId || ''),
     [confirmDelete, setConfirmDelete] = useState(false),
     [dueAt, setDueAt] = useState(inputDate(item.dueAt, zone)),
+    [plannedAt, setPlannedAt] = useState(inputDate(item.plannedAt || null, zone)),
     [occurredAt, setOccurredAt] = useState(inputDate(item.occurredAt, zone)),
     [reminderAt, setReminderAt] = useState(
       inputDate(item.reminders?.[0]?.scheduledAt || null, zone),
@@ -2724,6 +3074,7 @@ function DetailPanel({
             triageStatus,
             projectId: projectId || null,
             dueAt: fromInput(dueAt, zone),
+            plannedAt: fromInput(plannedAt, zone),
             occurredAt: fromInput(occurredAt, zone),
             reminderAt: fromInput(reminderAt, zone),
           });
@@ -2803,6 +3154,13 @@ function DetailPanel({
               required
               disabled={!writable || Boolean(item.deletedAt)}
               onChange={setOccurredAt}
+            />
+            <OrbitDateTimeField
+              label="计划行动时间"
+              value={plannedAt}
+              zone={zone}
+              quick
+              onChange={setPlannedAt}
             />
             <OrbitDateTimeField
               label="截止时间"

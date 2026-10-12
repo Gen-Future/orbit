@@ -651,6 +651,47 @@ async function handler(req: Request, context: Context) {
         );
       }
     }
+    if (resource === 'capture-batch' && method === 'POST') {
+      const input = z
+        .object({
+          drafts: z.array(draftSchema).min(1).max(12),
+          source: z.enum(['ai', 'rules', 'manual']).default('manual'),
+        })
+        .strict()
+        .parse(await body(req));
+      for (const draft of input.drafts)
+        invariant(!captureTimingIssues(draft).length, 400, captureTimingIssues(draft).join('；'));
+      return ok(
+        await mutation(actor, key, { route: 'capture-batch', input }, async (tx) => {
+          const items = [];
+          for (const draft of input.drafts) {
+            const { subtasks, ...fields } = draft;
+            const item = await createItem(tx, actor, fields, input.source);
+            const known = new Set<string>();
+            for (const title of subtasks) {
+              const normalized = title.trim().toLocaleLowerCase();
+              if (known.has(normalized)) continue;
+              known.add(normalized);
+              await createItem(
+                tx,
+                actor,
+                {
+                  title,
+                  parentId: item.id,
+                  projectId: item.projectId,
+                  quadrant: item.quadrant,
+                  triageStatus: item.triageStatus,
+                },
+                input.source,
+              );
+            }
+            items.push(item);
+          }
+          return { items };
+        }),
+        201,
+      );
+    }
     if (resource === 'capture' && method === 'POST') {
       const raw = await body(req);
       const input = draftSchema
