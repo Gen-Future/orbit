@@ -68,6 +68,12 @@ import {
   defaultCapturePreference,
 } from '../../packages/core/src/capture-experience';
 import { ReportFoundry } from './report-foundry';
+import {
+  CaptureReview,
+  CaptureDestination,
+  CaptureInsightNote,
+  CaptureTitle,
+} from './capture-review';
 import { NebulaMatrix, type AISignal, type StellarOutcome } from './nebula-matrix';
 import type { SedimentPage, SedimentSummary } from './sediment-belt';
 import type { OrbitPoint } from '../../packages/core/src/orbit-position';
@@ -2008,6 +2014,7 @@ export default function Orbit() {
           fallbackReason={draftFallbackReason}
           editing={Boolean(draftFor)}
           original={draftFor}
+          error={error}
           insight={draftInsights[0]}
           onOpenSimilar={async (id) => {
             setDraft(null);
@@ -2046,6 +2053,7 @@ export default function Orbit() {
         <BatchDraftPanel
           key={`${wid}:batch`}
           initial={batchDrafts}
+          error={error}
           insights={draftInsights}
           projects={activeProjects}
           zone={zone}
@@ -2371,11 +2379,13 @@ function Panel({
   subtitle,
   children,
   onClose,
+  className = '',
 }: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
   onClose: () => void;
+  className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -2385,9 +2395,9 @@ function Panel({
     const focusable = () =>
       Array.from(
         ref.current?.querySelectorAll<HTMLElement>(
-          'button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),a[href]',
+          'button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),a[href],summary',
         ) || [],
-      );
+      ).filter((node) => node.getClientRects().length > 0);
     focusable()[0]?.focus();
     const trap = (e: KeyboardEvent) => {
       if (e.key !== 'Tab') return;
@@ -2416,7 +2426,7 @@ function Panel({
       }}
     >
       <div
-        className="side-panel"
+        className={`side-panel ${className}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="panel-title"
@@ -2436,7 +2446,92 @@ function Panel({
     </div>
   );
 }
+function CaptureFields({
+  value,
+  onChange,
+  projects,
+  zone,
+}: {
+  value: CaptureDraft;
+  onChange: (patch: Partial<CaptureDraft>) => void;
+  projects: Project[];
+  zone: string;
+}) {
+  return (
+    <>
+      <label>
+        补充说明
+        <textarea
+          rows={3}
+          maxLength={12000}
+          value={value.notes}
+          onChange={(e) => onChange({ notes: e.target.value })}
+          placeholder="背景、想法、链接…"
+        />
+      </label>
+      <label>
+        所属项目
+        <select
+          value={value.projectId || ''}
+          onChange={(e) => onChange({ projectId: e.target.value || null })}
+        >
+          <option value="">独立事项</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="capture-time-fields">
+        <OrbitDateTimeField
+          label="计划行动时间"
+          value={inputDate(value.plannedAt || null, zone)}
+          zone={zone}
+          quick
+          onChange={(next) => onChange({ plannedAt: fromInput(next, zone) })}
+        />
+        <OrbitDateTimeField
+          label="截止时间"
+          value={inputDate(value.dueAt || null, zone)}
+          zone={zone}
+          quick
+          note="快捷时间默认设为 18:00"
+          onChange={(next) => onChange({ dueAt: fromInput(next, zone) })}
+        />
+        <OrbitDateTimeField
+          label="提醒时间"
+          value={inputDate(value.reminderAt || null, zone)}
+          zone={zone}
+          onChange={(next) => onChange({ reminderAt: fromInput(next, zone) })}
+        />
+      </div>
+      <label>
+        执行步骤 <span className="muted">每行一个，最多 12 个</span>
+        <textarea
+          rows={3}
+          value={value.subtasks.join('\n')}
+          onChange={(e) => onChange({ subtasks: e.target.value.split('\n') })}
+          placeholder="需要时再拆成几步"
+        />
+      </label>
+      <p className="field-note">时间按工作空间时区 {zone} 保存。</p>
+    </>
+  );
+}
+
+function captureSummary(value: CaptureDraft, projects: Project[], zone: string) {
+  return [
+    value.projectId &&
+      `项目 · ${projects.find((p) => p.id === value.projectId)?.name || '所属项目'}`,
+    value.plannedAt && `计划 · ${shortDate(value.plannedAt, zone)}`,
+    value.dueAt && `截止 · ${shortDate(value.dueAt, zone)}`,
+    value.reminderAt && `提醒 · ${shortDate(value.reminderAt, zone)}`,
+  ].filter((value): value is string => Boolean(value));
+}
+
 function DraftPanel({
+  error,
   initial,
   mode,
   notice,
@@ -2454,6 +2549,7 @@ function DraftPanel({
   onBatchRetry,
   onSave,
 }: {
+  error?: string;
   initial: CaptureDraft;
   mode: string;
   notice: string;
@@ -2525,6 +2621,47 @@ function DraftPanel({
         initial.subtasks.length > 0 && `${initial.subtasks.length} 个新步骤`,
       ].filter(Boolean)
     : [];
+  if (!editing) {
+    const current = { ...value, subtasks: subtaskRows };
+    const update = (patch: Partial<CaptureDraft>) => {
+      setValue((value) => ({ ...value, ...patch }));
+      if (patch.subtasks) setSubtasks(patch.subtasks.join('\n'));
+    };
+    return (
+      <Panel
+        className="capture-panel"
+        title="确认这件事"
+        subtitle="看一眼内容，选个位置，就能继续。"
+        onClose={onClose}
+      >
+        <CaptureReview
+          value={current}
+          onChange={update}
+          onSave={() => onSave(current)}
+          onClose={onClose}
+          busy={busy}
+          mode={mode}
+          notice={notice}
+          retryNote={retryNote}
+          onRetry={() => void retry()}
+          fallbackLabel={fallbackReason ? fallbackReasonLabels[fallbackReason] : undefined}
+          insight={insight}
+          onOpenSimilar={onOpenSimilar}
+          summary={captureSummary(current, projects, zone)}
+          fields={
+            <CaptureFields
+              value={{ ...value, subtasks: subtasks.split('\n') }}
+              onChange={update}
+              projects={projects}
+              zone={zone}
+            />
+          }
+          problems={captureTimingIssues(current)}
+          error={error}
+        />
+      </Panel>
+    );
+  }
   return (
     <Panel
       title={editing ? '从下一步开始' : '确认这件事'}
@@ -2774,6 +2911,7 @@ function DraftPanel({
   );
 }
 function BatchDraftPanel({
+  error,
   initial,
   insights,
   projects,
@@ -2786,6 +2924,7 @@ function BatchDraftPanel({
   onOpenSimilar,
   onSave,
 }: {
+  error?: string;
   initial: CaptureDraft[];
   insights: CaptureInsight[];
   projects: Project[];
@@ -2800,191 +2939,133 @@ function BatchDraftPanel({
 }) {
   const [rows, setRows] = useState(initial.map((draft) => ({ ...draft })));
   const [selected, setSelected] = useState(() => initial.map((_, i) => selection[i] ?? true));
+  const normalized = rows.map((row) => ({
+    ...row,
+    subtasks: row.subtasks.map((step) => step.trim()).filter(Boolean),
+  }));
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
   useEffect(() => {
-    onChangeRef.current(rows, selected);
+    onChangeRef.current(
+      rows.map((row) => ({
+        ...row,
+        subtasks: row.subtasks.map((step) => step.trim()).filter(Boolean),
+      })),
+      selected,
+    );
   }, [rows, selected]);
   function edit(index: number, patch: Partial<CaptureDraft>) {
     setRows((current) => current.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   }
-  const problems = rows.flatMap((row, i) => (selected[i] ? captureTimingIssues(row) : []));
+  const chosen = normalized.filter((_, i) => selected[i]);
+  const problems = chosen.flatMap((row) => captureTimingIssues(row));
+  const inboxCount = chosen.filter((row) => row.triageStatus === 'pending').length;
   return (
     <Panel
-      title={`发现 ${rows.length} 件事项`}
-      subtitle="确认要添加的内容，稍后仍可在星图中调整。"
+      className="capture-panel capture-batch-panel"
+      title={`确认 ${rows.length} 件事项`}
+      subtitle="逐件选好位置，取消勾选就不会添加。"
       onClose={onClose}
     >
-      <details className="batch-original">
-        <summary>查看原始输入</summary>
-        <p>{originalText}</p>
-      </details>
-      <div className="batch-draft-list">
-        {rows.map((row, index) => {
-          const insight = insights[index];
-          return (
-            <article className={`batch-draft-row ${selected[index] ? '' : 'is-muted'}`} key={index}>
-              <label className="batch-draft-check">
-                <input
-                  aria-label={`选择事项 ${index + 1}`}
-                  type="checkbox"
-                  checked={selected[index]}
-                  onChange={(event) =>
-                    setSelected((current) =>
-                      current.map((value, i) => (i === index ? event.target.checked : value)),
-                    )
-                  }
-                />
-                <span aria-hidden="true" />
-              </label>
-              <div className="batch-draft-content">
-                <input
-                  aria-label={`事项 ${index + 1} 名称`}
-                  maxLength={240}
+      <div className="capture-body">
+        <details className="capture-original">
+          <summary>
+            查看原始输入 <ChevronDown size={15} aria-hidden="true" />
+          </summary>
+          <p>{originalText}</p>
+        </details>
+        <div className="capture-batch-list">
+          {rows.map((row, index) => (
+            <article
+              className={`capture-batch-row ${selected[index] ? '' : 'is-muted'}`}
+              key={index}
+            >
+              <div className="capture-batch-heading">
+                <label className="capture-batch-check">
+                  <input
+                    aria-label={`选择事项 ${index + 1}`}
+                    type="checkbox"
+                    checked={selected[index]}
+                    disabled={busy}
+                    onChange={(e) =>
+                      setSelected((current) =>
+                        current.map((value, i) => (i === index ? e.target.checked : value)),
+                      )
+                    }
+                  />
+                </label>
+                <CaptureTitle
                   value={row.title}
-                  onChange={(event) =>
-                    setRows((current) =>
-                      current.map((value, i) =>
-                        i === index ? { ...value, title: event.target.value } : value,
-                      ),
-                    )
-                  }
-                  disabled={!selected[index]}
+                  label={`事项 ${index + 1} 名称`}
+                  onChange={(title) => edit(index, { title })}
+                  disabled={!selected[index] || busy}
                 />
-                <div className="batch-draft-meta">
-                  <span>
-                    {row.triageStatus === 'pending' ? '待整理' : quadrantNames[row.quadrant]}
-                  </span>
-                  {row.plannedAt && <span>计划 {shortDate(row.plannedAt, zone)}</span>}
-                  {row.dueAt && <span>截止 {shortDate(row.dueAt, zone)}</span>}
-                  {row.reminderAt && <span>提醒 {shortDate(row.reminderAt, zone)}</span>}
-                </div>
-                {insight?.clarification && <p className="field-note">{insight.clarification}</p>}
-                {insight?.classificationReason && <small>{insight.classificationReason}</small>}
-                <details className="batch-fields">
-                  <summary>修改细节</summary>
-                  <fieldset disabled={!selected[index] || busy}>
-                    <label>
-                      补充说明
-                      <textarea
-                        value={row.notes}
-                        onChange={(e) => edit(index, { notes: e.target.value })}
-                        rows={2}
-                        maxLength={12000}
-                      />
-                    </label>
-                    <label>
-                      注意力顺序
-                      <select
-                        value={row.triageStatus === 'pending' ? 'pending' : String(row.quadrant)}
-                        onChange={(e) =>
-                          edit(
-                            index,
-                            e.target.value === 'pending'
-                              ? { triageStatus: 'pending' }
-                              : { triageStatus: 'triaged', quadrant: Number(e.target.value) },
-                          )
-                        }
-                      >
-                        <option value="pending">待整理 · 收件箱</option>
-                        {quadrantNames.slice(1).map((name, i) => (
-                          <option key={i} value={i + 1}>
-                            {name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      所属项目
-                      <select
-                        value={row.projectId || ''}
-                        onChange={(e) => edit(index, { projectId: e.target.value || null })}
-                      >
-                        <option value="">独立事项</option>
-                        {projects.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <OrbitDateTimeField
-                      label="计划行动时间"
-                      value={inputDate(row.plannedAt || null, zone)}
-                      zone={zone}
-                      onChange={(value) => edit(index, { plannedAt: fromInput(value, zone) })}
-                    />
-                    <OrbitDateTimeField
-                      label="截止时间"
-                      value={inputDate(row.dueAt || null, zone)}
-                      zone={zone}
-                      quick
-                      onChange={(value) => edit(index, { dueAt: fromInput(value, zone) })}
-                    />
-                    <OrbitDateTimeField
-                      label="提醒时间"
-                      value={inputDate(row.reminderAt || null, zone)}
-                      zone={zone}
-                      onChange={(value) => edit(index, { reminderAt: fromInput(value, zone) })}
-                    />
-                    {row.subtasks.length > 0 && (
-                      <label>
-                        执行步骤
-                        <textarea
-                          rows={3}
-                          value={row.subtasks.join('\n')}
-                          onChange={(e) =>
-                            edit(index, {
-                              subtasks: e.target.value
-                                .split('\n')
-                                .map((v) => v.trim())
-                                .filter(Boolean),
-                            })
-                          }
-                        />
-                      </label>
-                    )}
-                  </fieldset>
-                </details>
-                {insight?.similar.map((item) => (
-                  <button
-                    type="button"
-                    className="text-button batch-similar"
-                    key={item.id}
-                    onClick={() => onOpenSimilar(item.id)}
-                  >
-                    已有相似事项：{item.title} · 查看
-                  </button>
-                ))}
               </div>
+              <CaptureDestination
+                value={row}
+                onChange={(patch) => edit(index, patch)}
+                disabled={!selected[index] || busy}
+                label={`事项 ${index + 1} 放入位置`}
+              />
+              {captureSummary(row, projects, zone).length > 0 && (
+                <ul className="capture-summary">
+                  {captureSummary(row, projects, zone).map((text) => (
+                    <li key={text}>{text}</li>
+                  ))}
+                </ul>
+              )}
+              <CaptureInsightNote insight={insights[index]} onOpenSimilar={onOpenSimilar} />
+              <details className="capture-details">
+                <summary>
+                  修改细节 <ChevronDown size={17} aria-hidden="true" />
+                </summary>
+                <fieldset className="capture-fields" disabled={!selected[index] || busy}>
+                  <CaptureFields
+                    value={row}
+                    onChange={(patch) => edit(index, patch)}
+                    projects={projects}
+                    zone={zone}
+                  />
+                </fieldset>
+              </details>
             </article>
-          );
-        })}
+          ))}
+        </div>
+        {problems.length > 0 && (
+          <p className="field-error" role="alert">
+            {[...new Set(problems)].join('；')}
+          </p>
+        )}
       </div>
-      {problems.length > 0 && (
-        <p className="field-error batch-errors">{[...new Set(problems)].join('；')}</p>
-      )}
-      <div className="panel-actions">
-        <button type="button" className="secondary-button" onClick={onClose}>
-          稍后继续
-        </button>
-        <button
-          type="button"
-          className="primary-button"
-          disabled={
-            busy ||
-            !selected.some(Boolean) ||
-            problems.length > 0 ||
-            rows.some(
-              (row, index) => selected[index] && (!row.title.trim() || row.subtasks.length > 12),
-            )
-          }
-          onClick={() => void onSave(rows.filter((_, index) => selected[index]))}
-        >
-          {busy ? <LoaderCircle size={16} className="spin" /> : <ArrowUpRight size={17} />}
-          添加 {selected.filter(Boolean).length} 件
-        </button>
-      </div>
+      <footer className="capture-footer">
+        {error && (
+          <p className="field-error" role="alert">
+            {error} · 内容已保留，可修改后重试。
+          </p>
+        )}
+        <p aria-live="polite">
+          <strong>{chosen.length - inboxCount} 件进入四象限</strong> · {inboxCount} 件放入收件箱
+        </p>
+        <div className="capture-footer-actions">
+          <button type="button" className="text-button" onClick={onClose}>
+            稍后继续
+          </button>
+          <button
+            type="button"
+            className="primary-button"
+            disabled={
+              busy ||
+              !chosen.length ||
+              problems.length > 0 ||
+              chosen.some((row) => !row.title.trim() || row.subtasks.length > 12)
+            }
+            onClick={() => void onSave(chosen)}
+          >
+            {busy ? <LoaderCircle size={17} className="spin" /> : <ArrowUpRight size={17} />}
+            {busy ? '正在保存…' : `添加 ${chosen.length} 件`}
+          </button>
+        </div>
+      </footer>
     </Panel>
   );
 }

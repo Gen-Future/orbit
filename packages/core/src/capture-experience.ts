@@ -128,6 +128,12 @@ export function mergeDraftSuggestion(
     if (JSON.stringify(edited[key] ?? null) !== JSON.stringify(before[key] ?? null))
       Object.assign(result, { [key]: edited[key] });
   }
+  // Triage and quadrant are one destination choice, including choosing the
+  // suggested quadrant explicitly when a draft previously belonged to inbox.
+  if (edited.triageStatus !== before.triageStatus || edited.quadrant !== before.quadrant) {
+    result.triageStatus = edited.triageStatus;
+    result.quadrant = edited.quadrant;
+  }
   return result;
 }
 

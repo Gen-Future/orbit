@@ -160,7 +160,7 @@ test('AI 简洁确认、重试保留编辑与刷新恢复', async ({ browser }) 
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
     ).toBeTruthy();
-    await panel.getByRole('button', { name: '添加事项', exact: true }).click();
+    await panel.getByRole('button', { name: '放入四象限', exact: true }).click();
     await expect(panel).toBeHidden();
     await expect(
       page.locator('.nebula-matrix').getByText('我编辑过的事项', { exact: true }),
@@ -296,14 +296,13 @@ test('UI 完整事项闭环与持久化', async ({ browser }) => {
   await page.getByLabel('自然语言记录事项').fill('明天下午三点提醒我处理端到端验收事项');
   await page.getByRole('button', { name: '解析并放入轨道', exact: true }).click();
   const panel = page.getByRole('dialog');
-  await expect(panel.getByText('可以先保存，稍后再整理', { exact: true })).toBeVisible();
+  await expect(panel.getByRole('button', { name: '保存到收件箱' })).toBeVisible();
   await panel.getByText('修改细节', { exact: true }).click();
   await expect(panel.getByLabel('提醒时间')).not.toHaveValue('');
   await panel.getByLabel('事项名称').fill('端到端验收事项');
-  await panel.getByLabel('整理状态').selectOption('triaged');
-  await panel.getByLabel('注意力坐标').selectOption('1');
+  await panel.getByRole('radio', { name: /^行动星区/ }).check();
   await panel.getByLabel('补充说明').fill('验证记录、完成、归档和周报来源');
-  await panel.getByRole('button', { name: '添加事项' }).click();
+  await panel.getByRole('button', { name: '放入四象限' }).click();
   await expect(panel).not.toBeVisible();
   await expect(page.getByText('端到端验收事项', { exact: true })).toBeVisible();
   await page.reload();

@@ -6,6 +6,7 @@ import '@fontsource/space-grotesk/700.css';
 import './globals.css';
 import './nebula.css';
 import './report-foundry.css';
+import './capture.css';
 export const metadata: Metadata = {
   title: 'Orbit · 让重要的事，进入轨道',
   description: '你的 AI 原生工作轨道。捕捉意图，推进重要的事。',

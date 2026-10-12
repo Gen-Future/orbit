@@ -128,6 +128,24 @@ test('重试更新未触碰的建议，保留用户修改与主动清空的字�
   assert.deepEqual(merged.subtasks, edited.subtasks);
 });
 
+test('重试保留完整放入位置，不能把已确认的默认象限重新分配', () => {
+  const before = {
+    ...simpleDraft('整理反馈', 'Asia/Shanghai'),
+    quadrant: 2,
+    triageStatus: 'pending' as const,
+  };
+  const edited = { ...before, triageStatus: 'triaged' as const };
+  const merged = mergeDraftSuggestion(before, edited, {
+    ...before,
+    quadrant: 1,
+    triageStatus: 'triaged',
+    notes: '新补充',
+  });
+  assert.equal(merged.quadrant, 2);
+  assert.equal(merged.triageStatus, 'triaged');
+  assert.equal(merged.notes, '新补充');
+});
+
 test('草稿恢复拒绝过期、损坏与结构不完整的数据', () => {
   const now = Date.now();
   const memory = {
